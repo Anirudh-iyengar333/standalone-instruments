@@ -269,7 +269,7 @@ class KeysightDSOX6004A:
         Get all available measurements for a channel
         
         Args:
-            channel (int): Channel number (1-4)
+            channel (int): Channel number (1-n)
         
         Returns:
             Dict[str, float]: All available measurements
