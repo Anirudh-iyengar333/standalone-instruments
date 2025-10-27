@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Keithley Power Supply Control Library - CONSOLIDATED FINAL (HARDENED)
-- No locks
+Keithley Power Supply Control Library - CONSOLIDATED FINAL
+- No lock
 - Robust I/O recovery
 - Buffer drain and explicit write/read
 - Consistent terminations and timeouts
