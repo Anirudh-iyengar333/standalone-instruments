@@ -1,0 +1,21 @@
+# Python Requirements for Standalone Instrument Controls
+# Laboratory Automation Project - Keithley, Oscilloscope, DMM Control
+
+# VISA Communication Libraries
+pyvisa>=1.13.0
+pyvisa-py>=0.7.0
+
+# Data Processing and Analysis
+numpy>=1.24.0
+
+# Plotting and Visualization
+matplotlib>=3.7.0
+
+# Image Processing (for screenshot capture)
+Pillow>=10.0.0
+
+# Serial Communication (if using RS232/USB-Serial instruments)
+pyserial>=3.5
+
+# Optional: USB Communication Backend
+pyusb>=1.2.1
