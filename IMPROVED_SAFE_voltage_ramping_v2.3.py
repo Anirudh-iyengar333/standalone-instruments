@@ -55,7 +55,7 @@ except Exception:
 class WaveformGenerator:
     """Simple waveform generator supporting a small set of user-selectable waveforms.
 
-    Produces a list of (time_from_start_seconds, voltage) tuples.
+    Produces a list of (time_from_start_seconds, voltage) tuples
     """
 
     TYPES = ["Sine", "Square", "Triangle", "Ramp Up", "Ramp Down"]
