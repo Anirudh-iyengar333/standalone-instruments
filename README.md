@@ -308,7 +308,7 @@ For technical support:
 - Consult instrument front panel for error codes
 
 **Instrument Manuals**:
-- [DMM6500 Programming Manual](https://www.tek.com/keithley-digital-multimeter/dmm6500-manual)
+- [DMM6500 Programming Manual](https://www.datatec.eu/media/21/27/1e/1682502161/Keithley-DMM6500-DB-1_DE.pdf?srsltid=AfmBOoplW1dkeYRWAT32FUesvxHW09aUytPxG2lfeuIME-bDWB96eV85)
 - [2230-30-1 User Manual](https://www.tek.com/en/manual/dc-power-supply/series-2230-triple-channel-power-supplies-users-manual-2220-2230-2231-series)
 - [DSOX6004A Programmer's Guide](https://www.keysight.com/us/en/product/DSOX6004A/oscilloscope-1-ghz-4-analog-channels.html)
 
