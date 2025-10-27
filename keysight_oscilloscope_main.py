@@ -314,7 +314,7 @@ class EnhancedResponsiveAutomationGUI:
 
     def setup_gui(self):
         """Construct responsive GUI layout with all control sections."""
-        self.root.title("Enhanced Keysight Oscilloscope Automation - v2.1")  # Set window title
+        self.root.title("Keysight Oscilloscope Automation")  # Set window title
         self.root.geometry("1200x750")  # Set initial window size (width × height pixels)
         self.root.configure(bg='#f5f5f5')  # Light gray background for professional appearance
         self.root.minsize(1000, 600)  # Enforce minimum window size for usability
@@ -1318,7 +1318,7 @@ class EnhancedResponsiveAutomationGUI:
     def run(self):
         """Start the application main event loop."""
         try:
-            self.log_message("Enhanced Keysight Oscilloscope Automation - v2.1", "SUCCESS")
+            self.log_message("Keysight Oscilloscope Automation", "SUCCESS")
             self.log_message("New Features: Timebase controls + Individual trigger levels", "SUCCESS")
             self.log_message("All controls use methods from instrument_control module", "SUCCESS")
             self.log_message("Ready to connect to oscilloscope")
@@ -1336,7 +1336,7 @@ class EnhancedResponsiveAutomationGUI:
 
 def main():
     """Application entry point."""
-    print("Enhanced Keysight Oscilloscope Automation - v2.1")
+    print("Keysight Oscilloscope Automation")
     print("New Features: Horizontal timebase controls + Individual channel trigger levels")
     print("All methods called from instrument_control module")
     print("=" * 80)
