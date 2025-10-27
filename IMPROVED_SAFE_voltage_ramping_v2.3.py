@@ -47,7 +47,7 @@ except Exception as e:
 
 # Optional helper from the oscilloscope automation app (reuse its data-acquisition/export/plot helpers)
 try:
-    from oscilloscope_automation_main import OscilloscopeDataAcquisition
+    from keysight_oscilloscope_main import OscilloscopeDataAcquisition
 except Exception:
     OscilloscopeDataAcquisition = None
 
