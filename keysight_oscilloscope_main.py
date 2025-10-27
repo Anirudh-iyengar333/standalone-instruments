@@ -1342,7 +1342,7 @@ def main():
     print("=" * 80)
     try:
         app = EnhancedResponsiveAutomationGUI()  # Create GUI application
-        app.run()  # Start event loop
+        app.run()  # Start event loops
     except Exception as e:
         print(f"Error: {e}")
         input("Press Enter to exit...")
