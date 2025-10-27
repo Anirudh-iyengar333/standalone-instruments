@@ -527,7 +527,7 @@ class PowerSupplyAutomationGUI:
         addr_frame.pack(fill=tk.X, pady=(0, 10))  # Fill width, add padding
         
         ttk.Label(addr_frame, text="VISA Address:", font=("Arial", 9)).pack(side=tk.LEFT)  # Label
-        self.visa_address_var = tk.StringVar(value="USB0::0x05E6::0x2230::805224014806770001::INSTR")  # Default address
+        self.visa_address_var = tk.StringVar(value=" USB0::0x05E6::0x2230::805224014806770001::INSTR")  # Default address
         self.visa_entry = ttk.Entry(addr_frame, textvariable=self.visa_address_var, font=("Courier", 9))  # Entry field
         self.visa_entry.pack(side=tk.LEFT, padx=(8, 0), fill=tk.X, expand=True)  # Fill remaining space
         
