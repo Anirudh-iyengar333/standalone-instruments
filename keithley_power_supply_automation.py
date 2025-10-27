@@ -556,7 +556,7 @@ class PowerSupplyAutomationGUI:
         
         # Instrument info display
         self.info_text = tk.Text(conn_frame, height=2, font=("Courier", 8), state="disabled",
-            wrap=tk.WORD, bg="#f8f9fa")  # Read-only monospace text
+            wrap=tk.WORD, bg="#96cbff")  # Read-only monospace text
         self.info_text.pack(fill=tk.X)  # Fill width
 
     def create_channel_frames(self):
