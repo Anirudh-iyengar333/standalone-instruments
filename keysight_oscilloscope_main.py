@@ -1338,7 +1338,7 @@ def main():
     """Application entry point."""
     print("Keysight Oscilloscope Automation")
     print("New Features: Horizontal timebase controls + Individual channel trigger levels")
-    print("All methods called from instrument_control module")
+    print("All methods called from instrument_control file")
     print("=" * 80)
     try:
         app = EnhancedResponsiveAutomationGUI()  # Create GUI application
