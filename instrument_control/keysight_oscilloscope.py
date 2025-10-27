@@ -322,7 +322,7 @@ class KeysightDSOX6004A:
         return self.measure_single(channel, "NDUTy")
 
     # ============================================================================
-    # REMAINING METHODS (configure_function_generator, capture_screenshot, etc.)
+    # REMAINING METHODS (configure_function_generator, capture_screenshot, etc)
     # ============================================================================
 
     def capture_screenshot(self, filename: Optional[str] = None, image_format: str = "PNG", include_timestamp: bool = True) -> Optional[str]:
