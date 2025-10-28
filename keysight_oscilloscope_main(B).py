@@ -144,6 +144,23 @@ class OscilloscopeDataAcquisition:
             voltage_data = [(value - y_reference) * y_increment + y_origin for value in raw_data]  # Convert ADC→voltage using calibration
             time_data = [x_origin + (i * x_increment) for i in range(len(voltage_data))]  # Generate time array with proper scaling
             self._logger.info(f"Successfully acquired {len(voltage_data)} points from channel {channel}")
+                        # ─────────────────────────────────────────────────────────────────────
+            # NEW: Get all measurement values from the oscilloscope
+            # These are the actual instrument measurements, not calculated from waveform
+            # ─────────────────────────────────────────────────────────────────────
+            measurements = {}
+            measurement_types = ["FREQ", "PERiod", "VAMP", "VAVG", "VRMS", "VMAX", "VMIN", "FALL", "Pcycle", "Ncycle"]
+            
+            for meas_type in measurement_types:
+                try:
+                    value = self.scope.measure_single(channel, meas_type)
+                    measurements[meas_type] = value
+                except:
+                    measurements[meas_type] = None
+            
+            # ─────────────────────────────────────────────────────────────────────
+            # Return both waveform data AND measurements
+            # ─────────────────────────────────────────────────────────────────────
             return {
                 'channel': channel,  # Preserve channel identifier
                 'time': time_data,  # Time array in seconds
@@ -152,8 +169,10 @@ class OscilloscopeDataAcquisition:
                 'time_increment': x_increment,  # Time resolution between samples
                 'voltage_increment': y_increment,  # Voltage resolution per ADC count
                 'points_count': len(voltage_data),  # Total samples acquired
-                'acquisition_time': datetime.now().isoformat()  # Record acquisition timestamp for traceability
+                'acquisition_time': datetime.now().isoformat(),  # Record acquisition timestamp for traceability
+                'measurements': measurements  # NEW: Add all measurement values
             }
+
         except Exception as e:  # Catch any communication or processing errors
             self._logger.error(f"Failed to acquire waveform data from channel {channel}: {e}")
             return None
@@ -227,98 +246,69 @@ class OscilloscopeDataAcquisition:
     def generate_waveform_plot(self, waveform_data: Dict[str, Any], custom_path: Optional[str] = None,
                               filename: Optional[str] = None, plot_title: Optional[str] = None) -> Optional[str]:
         """
-        Generate publication-quality plot with embedded statistics.
-        
+        Generate publication-quality plot with embedded MEASUREMENTS (not statistics).
         Creates a matplotlib figure showing voltage vs. time with grid overlay,
-        and adds a statistics box (max, min, mean, RMS, std dev) calculated from
-        the waveform for immediate visual analysis without external tools.
-        
-        Args:
-            waveform_data (Dict): Waveform dictionary from acquire_waveform_data()
-            custom_path (Optional[str]): Override default save directory (None→default)
-            filename (Optional[str]): Override auto-generated filename (None→auto-generate)
-            plot_title (Optional[str]): Custom plot title (None→auto-generate from channel)
-        
-        Returns:
-            str: Full path to saved PNG file, or None if generation fails
-        
-        Raises:
-            Logs errors internally; returns None on failure (non-blocking)
+        and adds a measurement box containing values reported by the oscilloscope.
         """
-        if not waveform_data:  # Validate input data exists
+        if not waveform_data:
             self._logger.error("No waveform data to plot")
             return None
 
         try:
-            save_dir = Path(custom_path) if custom_path else self.default_graph_dir  # Select output directory
-            self.scope.setup_output_directories()  # Create default directory structure if needed
-            save_dir.mkdir(parents=True, exist_ok=True)  # Create target directory with parent folders
-            if filename is None:  # Auto-generate filename if not provided
-                timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")  # Create readable timestamp
-                filename = f"waveform_plot_ch{waveform_data['channel']}_{timestamp}.png"  # Compose descriptive filename
-            if not filename.lower().endswith(('.png', '.jpg', '.jpeg')):  # Validate image format
-                filename += '.png'  # Default to PNG if extension missing
-            filepath = save_dir / filename  # Construct full file path
-            plt.figure(figsize=(12, 8))  # Create new figure with wide aspect ratio for readability
-            plt.plot(waveform_data['time'], waveform_data['voltage'], 'b-', linewidth=1)  # Plot waveform as blue line
-            if plot_title is None:  # Auto-generate title if not provided
+            save_dir = Path(custom_path) if custom_path else self.default_graph_dir
+            self.scope.setup_output_directories()
+            save_dir.mkdir(parents=True, exist_ok=True)
+            if filename is None:
+                timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+                filename = f"waveform_plot_ch{waveform_data['channel']}_{timestamp}.png"
+            if not filename.lower().endswith(('.png', '.jpg', '.jpeg')):
+                filename += '.png'
+            filepath = save_dir / filename
+
+            plt.figure(figsize=(12, 8))
+            plt.plot(waveform_data['time'], waveform_data['voltage'], 'b-', linewidth=1)
+            if plot_title is None:
                 plot_title = f"Oscilloscope Waveform - Channel {waveform_data['channel']}"
-            plt.title(plot_title, fontsize=14, fontweight='bold')  # Add descriptive title
-            plt.xlabel('Time (s)', fontsize=12)  # Label X-axis with units
-            plt.ylabel('Voltage (V)', fontsize=12)  # Label Y-axis with units
-            plt.grid(True, alpha=0.3)  # Enable semi-transparent grid for reference
-            voltage_array = np.array(waveform_data['voltage'])  # Convert to NumPy array for statistics
-            stats_text = f"""Statistics:
-Max: {np.max(voltage_array):.3f} V
-Min: {np.min(voltage_array):.3f} V
-Mean: {np.mean(voltage_array):.3f} V
-RMS: {np.sqrt(np.mean(voltage_array**2)):.3f} V
-Std Dev: {np.std(voltage_array):.3f} V
-Points: {len(voltage_array)}"""  # Compute and format statistical summary
-            plt.text(0.02, 0.98, stats_text, transform=plt.gca().transAxes,
-                    fontsize=10, verticalalignment='top',
-                    bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8))  # Embed statistics box in plot corner
-            plt.tight_layout()  # Adjust spacing to prevent label cutoff
-            plt.savefig(filepath, dpi=1600, bbox_inches='tight')  # Save at high resolution (1600 DPI) for publication
-            plt.close()  # Release memory by closing figure
+            plt.title(plot_title, fontsize=14, fontweight='bold')
+            plt.xlabel('Time (s)', fontsize=12)
+            plt.ylabel('Voltage (V)', fontsize=12)
+            plt.grid(True, alpha=0.3)
+
+            # ═════════════════════════════════════════════════════════════════
+            # DISPLAY MEASUREMENTS INSTEAD OF STATISTICS
+            # ═════════════════════════════════════════════════════════════════
+            measurements = waveform_data.get('measurements', {})
+
+            measurements_text = "MEASUREMENTS:\n"
+            measurements_text += "─" * 25 + "\n"
+            measurements_text += f"Freq: {measurements.get('FREQ', 'N/A')}\n"
+            measurements_text += f"Period: {measurements.get('PERiod', 'N/A')}\n"
+            measurements_text += f"Vamp: {measurements.get('VAMP', 'N/A')}\n"
+            measurements_text += f"Vavg: {measurements.get('VAVG', 'N/A')}\n"
+            measurements_text += f"VRMS: {measurements.get('VRMS', 'N/A')}\n"
+            measurements_text += f"VMAX: {measurements.get('VMAX', 'N/A')}\n"
+            measurements_text += f"VMIN: {measurements.get('VMIN', 'N/A')}\n"
+            measurements_text += f"Rise: {measurements.get('RISE', 'N/A')}\n"
+            measurements_text += f"Fall: {measurements.get('FALL', 'N/A')}\n"
+            measurements_text += f"Pcycle: {measurements.get('Pcycle', 'N/A')}\n"
+            measurements_text += f"Ncycle: {measurements.get('Ncycle', 'N/A')}\n"
+
+            plt.text(0.02, 0.98, measurements_text, 
+                     transform=plt.gca().transAxes,
+                     fontsize=9, 
+                     verticalalignment='top',
+                     bbox=dict(boxstyle='round', facecolor='lightblue', alpha=0.85),
+                     family='monospace')
+
+            plt.tight_layout()
+            plt.savefig(filepath, dpi=1600, bbox_inches='tight')
+            plt.close()
             self._logger.info(f"Plot saved successfully: {filepath}")
-            return str(filepath)  # Return path as string for downstream processing
-        except Exception as e:  # Catch plotting or file I/O errors
+            return str(filepath)
+
+        except Exception as e:
             self._logger.error(f"Failed to generate plot: {e}")
             return None
-
-
-class EnhancedResponsiveAutomationGUI:
-    """
-    Professional Oscilloscope Automation GUI Application
-    
-    Implements a complete tkinter-based graphical interface for Keysight oscilloscope
-    control with responsive layout, multi-threaded operations, and comprehensive
-    instrument configuration capabilities. Designed for laboratory automation and
-    test equipment monitoring workflows.
-    
-    Key Responsibilities:
-        • GUI layout management with responsive grid-based design
-        • User input capture and validation
-        • Oscilloscope method calls via instrument_control module
-        • Multi-threaded background operations (non-blocking UI)
-        • Status tracking and real-time event logging
-        • Data acquisition and export coordination
-    
-    Architecture Pattern:
-        • Main thread: GUI event handling and display updates
-        • Worker threads: Long-running operations (connection, data acquisition, plotting)
-        • Queue: Thread-safe communication between worker and main threads
-        • Periodic polling: Main thread checks queue for status updates
-    
-    Attributes:
-        root (tk.Tk): Main tkinter window
-        oscilloscope (KeysightDSOX6004A): Connected instrument instance
-        data_acquisition (OscilloscopeDataAcquisition): Data handler instance
-        last_acquired_data (Dict): Cache of most recent acquisition for quick export/plot
-        status_queue (queue.Queue): Thread-safe status message queue
-        Various StringVar/DoubleVar/BooleanVar: GUI control value containers
-    """
 
     def __init__(self):
         """Initialize GUI application with all components and event handlers."""
@@ -655,8 +645,8 @@ class EnhancedResponsiveAutomationGUI:
         ttk.Label(meas_frame, text="Type:", font=('Arial', 8)).grid(row=0, column=col, sticky='w', padx=(0, 2))
         col += 1
         self.measurement_type_var = tk.StringVar(value="FREQ")
-        measurement_types = ["FREQ", "PERiod", "VPP", "VAMP", "OVERshoot", "VTOP", "VBASe", "VAVG", "VRMS", "VMAX", "VMIN", "RISE", "FALL", "DUTYcycle", "NDUTy"]
-        ttk.Combobox(meas_frame, textvariable=self.measurement_type_var, values=measurement_types, width=8, state='readonly', font=('Arial', 8)).grid(row=0, column=col, padx=(0, 5))
+        measurement_types = ["FREQ", "PERiod", "VPP", "VAMP", "OVERshoot", "VTOP", "VBASe", "VAVG", "VRMS", "VMAX", "VMIN", "RISE", "FALL", "Pcycle", "Ncycle"]
+        ttk.Combobox(meas_frame, textvariable=self.measurement_type_var, values=measurement_types, width=20, state='readonly', font=('Arial', 8)).grid(row=0, column=col, padx=(10,5))
         col += 1
         self.measure_btn = ttk.Button(meas_frame, text="Measure", width=8, command=self.perform_measurement, style='Primary.TButton', state='disabled')
         self.measure_btn.grid(row=0, column=col, sticky='ew', padx=2)
@@ -1454,7 +1444,7 @@ class EnhancedResponsiveAutomationGUI:
     #             return f"{value*1e3:.3f} mV"
     #         else:
     #             return f"{value*1e6:.3f} µV"
-    #     elif meas_type in ["DUTYcycle", "NDUTy"]:
+    #     elif meas_type in ["Pcycle", "Ncycle"]:
     #         return f"{value:.2f} %"
     #     else:
     #         return f"{value:.3e}"
@@ -1496,7 +1486,7 @@ class EnhancedResponsiveAutomationGUI:
             else:
                 return f"{value*1e6:.3f} µV{warning}"
         # Duty Cycle
-        elif meas_type in ["DUTYcycle", "NDUTy","OVERshoot"]:
+        elif meas_type in ["Pcycle", "Ncycle","OVERshoot"]:
             return f"{value:.2f} %{warning}"
         # All others: just show as-is with warning if suspiciously big
         return f"{value} (raw){warning}"
