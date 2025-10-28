@@ -57,6 +57,7 @@ except ImportError as e:
     print(f"Error importing instrument control modules: {e}")
     print("Please ensure the instrument_control package is in your Python path")
     sys.exit(1)
+
 def parse_timebase_string(value: str) -> float:
     value = value.strip().lower()
     if "ns" in value:
@@ -69,6 +70,10 @@ def parse_timebase_string(value: str) -> float:
         return float(value.replace("s", "").strip())
     else:
         return float(value)  # Default - assume already in seconds
+TRIGGER_SLOPE_MAP = {
+    "Raising": "POS",
+    "Falling": "NEG"
+}
 
 
 class OscilloscopeDataAcquisition:
@@ -701,7 +706,8 @@ class EnhancedResponsiveAutomationGUI:
             try:
                 trigger_source = self.trigger_source_var.get()  # Retrieve trigger source from GUI
                 trigger_level = self.trigger_level_var.get()  # Retrieve trigger level from GUI
-                trigger_slope = self.trigger_slope_var.get()  # Retrieve trigger slope from GUI
+                trigger_slope_gui = self.trigger_slope_var.get()  # Gets "Raising" or "Falling"
+                trigger_slope = TRIGGER_SLOPE_MAP.get(trigger_slope_gui, "POS")  # Retrieve trigger slope from GUI
                 channel = int(trigger_source.replace("CH", ""))  # Extract channel number (e.g., "CH1" → 1)
                 self.update_status("Configuring trigger...")  # Update status display
                 self.log_message(f"Configuring trigger: {trigger_source}, {trigger_level}V, {trigger_slope} edge")
