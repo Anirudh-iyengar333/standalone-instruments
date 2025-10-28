@@ -418,6 +418,13 @@ class EnhancedResponsiveAutomationGUI:
         ttk.Combobox(config_frame, textvariable=self.coupling_var, values=["AC", "DC"], 
                     width=4, state='readonly', font=('Arial', 8)).grid(row=0, column=col, padx=(0, 8))
         col += 1
+        # In create_channel_config_frame:
+        ttk.Label(config_frame, text="Offset(V):", font=('Arial', 8)).grid(row=0, column=col, sticky='w')
+        col += 1
+        self.v_offset_var = tk.DoubleVar(value=0.0)
+        ttk.Entry(config_frame, textvariable=self.v_offset_var, width=6, font=('Arial', 8)).grid(row=0, column=col, padx=(0, 8))
+        col += 1
+
         ttk.Label(config_frame, text="Probe:", font=('Arial', 8)).grid(row=0, column=col, sticky='w')
         col += 1
         self.probe_var = tk.DoubleVar(value=1.0)  # Probe attenuation factor (1×, 10×, 100×)
