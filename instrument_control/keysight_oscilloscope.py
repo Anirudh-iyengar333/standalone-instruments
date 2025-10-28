@@ -39,15 +39,15 @@ class KeysightDSOX6004A:
             10e-3, 20e-3, 50e-3, 100e-3, 200e-3, 500e-3,
             1.0, 2.0, 5.0, 10.0, 20.0, 50.0
         ]
-        # self._measurement_types = [
-        #     "FREQ", "PERiod", "VTOP", "VBASe", "VAMP", "VAVG", "VRMS",
-        #     "VMIN", "VMAX", "VPPK", "VRISE", "VFALL", "PWIDTH", "NWIDTH",
-        #     "PDUTy", "NDUTy", "RISE", "FALL", "DELAY"
-        # ]
+       
         self._measurement_types = [
             "FREQ",      # Frequency
             "PERiod",    # Period (correct: PER-iod)
+            "VPP",       # Peak-to-Peak Voltage
             "VAMP",      # Amplitude
+            "OVERshoot", # Overshoot Voltage
+            "VTOP",      # Top Voltage
+            "VBASe",    # Base Voltage
             "VAVG",      # Average
             "VRMS",      # RMS
             "VMAX",      # Maximum
@@ -283,20 +283,36 @@ class KeysightDSOX6004A:
         Returns:
             Dict[str, float]: All available measurements
         """
-        essential_measurements = ["FREQ", "PERiod", "VAMP", "VAVG", "VRMS", "VMAX", "VMIN"]
+        essential_measurements = ["FREQ", "PERiod", "VAMP", "VTOP", "VBASe", "VAVG", "VRMS", "VMAX", "VMIN", "OVERshoot"]
         return self.measure_multiple(channel, essential_measurements)
 
     def measure_frequency(self, channel: int) -> Optional[float]:
         """Measure signal frequency in Hz"""
         return self.measure_single(channel, "FREQ")
 
+    def measure_peak_to_peak(self, channel: int) -> Optional[float]:
+        """Measure signal peak-to-peak voltage in volts"""
+        return self.measure_single(channel, "VPP")
+
     def measure_period(self, channel: int) -> Optional[float]:
         """Measure signal period in seconds"""
         return self.measure_single(channel, "PERiod")
 
+    def measure_top(self, channel: int) -> Optional[float]:
+        """Measure signal top voltage in volts"""
+        return self.measure_single(channel, "VTOP")
+
+    def measure_base(self, channel: int) -> Optional[float]:
+        """Measure signal base voltage in volts"""
+        return self.measure_single(channel, "VBASe")
+
     def measure_amplitude(self, channel: int) -> Optional[float]:
         """Measure signal amplitude (peak-to-peak) in volts"""
         return self.measure_single(channel, "VAMP")
+
+    def measure_overshoot(self, channel: int) -> Optional[float]:
+        """Measure signal overshoot voltage in volts"""
+        return self.measure_single(channel, "OVERshoot")
 
     def measure_average(self, channel: int) -> Optional[float]:
         """Measure signal average voltage in volts"""

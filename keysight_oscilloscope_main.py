@@ -655,7 +655,7 @@ class EnhancedResponsiveAutomationGUI:
         ttk.Label(meas_frame, text="Type:", font=('Arial', 8)).grid(row=0, column=col, sticky='w', padx=(0, 2))
         col += 1
         self.measurement_type_var = tk.StringVar(value="FREQ")
-        measurement_types = ["FREQ", "PERiod", "VAMP", "VAVG", "VRMS", "VMAX", "VMIN", "RISE", "FALL", "PDUTy", "NDUTy"]
+        measurement_types = ["FREQ", "PERiod", "VPP", "VAMP", "OVERshoot", "VTOP", "VBASe", "VAVG", "VRMS", "VMAX", "VMIN", "RISE", "FALL", "PDUTy", "NDUTy"]
         ttk.Combobox(meas_frame, textvariable=self.measurement_type_var, values=measurement_types, width=8, state='readonly', font=('Arial', 8)).grid(row=0, column=col, padx=(0, 5))
         col += 1
         self.measure_btn = ttk.Button(meas_frame, text="Measure", width=8, command=self.perform_measurement, style='Primary.TButton', state='disabled')
@@ -1488,7 +1488,7 @@ class EnhancedResponsiveAutomationGUI:
             else:
                 return f"{value*1e12:.3f} ps{warning}"
         # Voltage
-        elif meas_type in ["VAMP", "VAVG", "VRMS", "VMAX", "VMIN"]:
+        elif meas_type in ["VAMP", "VTOP", "VBASe", "VAVG", "VRMS", "VMAX", "VMIN", "VPP",]:
             if abs(value) >= 1.0:
                 return f"{value:.3f} V{warning}"
             elif abs(value) >= 1e-3:
@@ -1496,7 +1496,7 @@ class EnhancedResponsiveAutomationGUI:
             else:
                 return f"{value*1e6:.3f} µV{warning}"
         # Duty Cycle
-        elif meas_type in ["PDUTy", "NDUTy"]:
+        elif meas_type in ["PDUTy", "NDUTy","OVERshoot"]:
             return f"{value:.2f} %{warning}"
         # All others: just show as-is with warning if suspiciously big
         return f"{value} (raw){warning}"
