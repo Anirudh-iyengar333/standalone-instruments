@@ -44,19 +44,24 @@ class KeysightDSOX6004A:
         #     "VMIN", "VMAX", "VPPK", "VRISE", "VFALL", "PWIDTH", "NWIDTH",
         #     "PDUTy", "NDUTy", "RISE", "FALL", "DELAY"
         # ]
-        self._measurement_types = [
-            "FREQ",      # Frequency
-            "PERiod",    # Period (correct: PER-iod)
-            "VAMP",      # Amplitude
-            "VAVG",      # Average
-            "VRMS",      # RMS
-            "VMAX",      # Maximum
-            "VMIN",      # Minimum
-            "RISE",      # Rise time
-            "FALL",      # Fall time
-            "PDUTy",     # Positive duty (correct: PDU-Ty)
-            "NDUTy"      # Negative duty (correct: NDU-Ty)
-        ]
+        # Measurement type mapping: User-friendly name → Correct SCPI command
+        # Some measurements require specific capitalization or full command names
+        self._measurement_type_map = {
+            "FREQ": "FREQuency",      # Frequency (short form FREQ also works)
+            "PERiod": "PERiod",       # Period  
+            "VAMP": "VAMPlitude",     # Amplitude (short form VAMP also works)
+            "VAVG": "VAVerage",       # Average voltage (MUST use VAVerage!)
+            "VRMS": "VRMS",            # RMS voltage
+            "VMAX": "VMAX",            # Maximum voltage
+            "VMIN": "VMIN",            # Minimum voltage
+            "RISE": "RISetime",        # Rise time (MUST use RISetime!)
+            "FALL": "FALLtime",        # Fall time (MUST use FALLtime!)
+            "PDUTy": "DUTYcycle",      # Positive duty cycle (MUST use DUTYcycle!)
+            "NDUTy": "NDUTy"           # Negative duty cycle
+        }
+
+        # List of valid measurement types (for user reference)
+        self._measurement_types = list(self._measurement_type_map.keys())
 
     def connect(self) -> bool:
         """Establish VISA connection to oscilloscope"""
@@ -220,7 +225,9 @@ class KeysightDSOX6004A:
         #     return None
         
         try:
-            query_command = f":MEASure:{measurement_type}? CHANnel{channel}"
+            # Map user-friendly name to correct SCPI command
+            scpi_command = self._measurement_type_map.get(measurement_type, measurement_type)
+            query_command = f":MEASure:{scpi_command}? CHANnel{channel}"
             self._scpi_wrapper.query("*OPC?")
             time.sleep(0.1)
             response = self._scpi_wrapper.query(query_command).strip()
@@ -389,6 +396,28 @@ class KeysightDSOX6004A:
             return True
         except Exception as e:
             self._logger.error(f"Failed to configure WGEN{generator}: {e}")
+            return False
+
+
+    def autoscale(self) -> bool:
+        """
+        Execute autoscale command to automatically optimize display settings.
+
+        Returns:
+            bool: True if autoscale executed successfully
+        """
+        if not self.is_connected:
+            self._logger.error("Cannot autoscale: oscilloscope not connected")
+            return False
+
+        try:
+            self._scpi_wrapper.write(":AUToscale")
+            time.sleep(2.0)  # Wait for autoscale to complete
+            self._scpi_wrapper.query("*OPC?")
+            self._logger.info("Autoscale executed successfully")
+            return True
+        except Exception as e:
+            self._logger.error(f"Autoscale failed: {type(e).__name__}: {e}")
             return False
 
     def get_function_generator_config(self, generator: int) -> Optional[Dict[str, Any]]:

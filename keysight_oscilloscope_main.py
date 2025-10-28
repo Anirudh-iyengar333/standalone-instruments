@@ -361,8 +361,9 @@ class EnhancedResponsiveAutomationGUI:
         main_frame.rowconfigure(3, weight=0)  # Timebase/trigger: fixed size
         main_frame.rowconfigure(4, weight=0)  # Function generators: fixed size
         main_frame.rowconfigure(5, weight=0)  # File preferences: fixed size
-        main_frame.rowconfigure(6, weight=0)  # Operations buttons: fixed size
-        main_frame.rowconfigure(7, weight=1)  # Status log: EXPANDABLE to fill remaining space
+        main_frame.rowconfigure(6, weight=0)  # Measurement: fixed size (NEW)
+        main_frame.rowconfigure(7, weight=0)  # Operations buttons: fixed size
+        main_frame.rowconfigure(8, weight=1)  # Status log: EXPANDABLE to fill remaining space
         title_label = ttk.Label(main_frame, text="Keysight Oscilloscope Automation", style='Title.TLabel')
         title_label.grid(row=0, column=0, pady=(0, 3), sticky='ew')  # Span full width
         self.create_connection_frame(main_frame, row=1)  # Add connection controls
@@ -370,8 +371,9 @@ class EnhancedResponsiveAutomationGUI:
         self.create_timebase_trigger_frame(main_frame, row=3)  # Add timebase/trigger controls
         self.create_function_generator_frame(main_frame, row=4)  # Add function generator controls
         self.create_file_preferences_frame(main_frame, row=5)  # Add file path settings
-        self.create_operations_frame(main_frame, row=6)  # Add operation buttons
-        self.create_status_frame(main_frame, row=7)  # Add status log (expandable)
+        self.create_measurement_frame(main_frame, row=6)  # Measurement & autoscale (NEW)
+        self.create_operations_frame(main_frame, row=7)  # Add operation buttons
+        self.create_status_frame(main_frame, row=8)  # Add status log (expandable)
         self.main_frame = main_frame  # Store reference for future modifications
 
     def configure_styles(self):
@@ -632,6 +634,40 @@ class EnhancedResponsiveAutomationGUI:
                               font=('Arial', 7, 'italic'), foreground='#666')
         hint_label.grid(row=1, column=7, columnspan=2, sticky='w', pady=(2, 0))
 
+    def create_measurement_frame(self, parent, row):
+        """Create measurement controls for waveform analysis."""
+        meas_frame = ttk.LabelFrame(parent, text="Measurements & Autoscale", padding="3")
+        meas_frame.grid(row=row, column=0, sticky='ew', pady=(0, 2))
+        for i in range(10):
+            meas_frame.columnconfigure(i, weight=0)
+        meas_frame.columnconfigure(9, weight=1)
+        col = 0
+        ttk.Label(meas_frame, text="MEASUREMENT:", font=('Arial', 8, 'bold'), foreground='#1a365d').grid(row=0, column=col, sticky='w', padx=(0, 5))
+        col += 1
+        ttk.Label(meas_frame, text="Channel:", font=('Arial', 8)).grid(row=0, column=col, sticky='w', padx=(0, 2))
+        col += 1
+        self.measurement_channel_var = tk.StringVar(value="CH1")
+        ttk.Combobox(meas_frame, textvariable=self.measurement_channel_var, values=["CH1", "CH2", "CH3", "CH4"], width=5, state='readonly', font=('Arial', 8)).grid(row=0, column=col, padx=(0, 5))
+        col += 1
+        ttk.Label(meas_frame, text="Type:", font=('Arial', 8)).grid(row=0, column=col, sticky='w', padx=(0, 2))
+        col += 1
+        self.measurement_type_var = tk.StringVar(value="FREQ")
+        measurement_types = ["FREQ", "PERiod", "VAMP", "VAVG", "VRMS", "VMAX", "VMIN", "RISE", "FALL", "PDUTy", "NDUTy"]
+        ttk.Combobox(meas_frame, textvariable=self.measurement_type_var, values=measurement_types, width=8, state='readonly', font=('Arial', 8)).grid(row=0, column=col, padx=(0, 5))
+        col += 1
+        self.measure_btn = ttk.Button(meas_frame, text="Measure", width=8, command=self.perform_measurement, style='Primary.TButton', state='disabled')
+        self.measure_btn.grid(row=0, column=col, sticky='ew', padx=2)
+        col += 1
+        ttk.Label(meas_frame, text="Result:", font=('Arial', 8, 'bold')).grid(row=0, column=col, sticky='w', padx=(8, 2))
+        col += 1
+        self.measurement_result_var = tk.StringVar(value="N/A")
+        ttk.Entry(meas_frame, textvariable=self.measurement_result_var, width=18, font=('Arial', 9, 'bold'), state='readonly', foreground='#2563eb').grid(row=0, column=col, sticky='ew', padx=(0, 8))
+        col += 1
+        ttk.Separator(meas_frame, orient='vertical').grid(row=0, column=col, sticky='ns', padx=5)
+        col += 1
+        self.autoscale_btn = ttk.Button(meas_frame, text="⚡ Autoscale", width=12, command=self.perform_autoscale, style='Success.TButton', state='disabled')
+        self.autoscale_btn.grid(row=0, column=col, sticky='ew', padx=2)
+
     def create_operations_frame(self, parent, row):
         """Create data acquisition and export operation buttons."""
         ops_frame = ttk.LabelFrame(parent, text="Operations", padding="3")
@@ -867,7 +903,8 @@ class EnhancedResponsiveAutomationGUI:
         buttons = [self.screenshot_btn, self.acquire_data_btn, self.export_csv_btn,
                   self.generate_plot_btn, self.full_automation_btn, self.open_folder_btn,
                   self.config_channel_btn, self.test_btn, self.wgen1_apply_btn, self.wgen2_apply_btn,
-                  self.timebase_apply_btn, self.trigger_apply_btn]
+                  self.timebase_apply_btn, self.trigger_apply_btn,
+                  self.measure_btn, self.autoscale_btn]  # NEW: Measurement buttons
         for btn in buttons:  # Iterate all operation buttons
             try:
                 btn.configure(state='disabled')  # Disable button (grayed out)
@@ -879,7 +916,8 @@ class EnhancedResponsiveAutomationGUI:
         buttons = [self.screenshot_btn, self.acquire_data_btn, self.export_csv_btn,
                   self.generate_plot_btn, self.full_automation_btn, self.open_folder_btn,
                   self.config_channel_btn, self.test_btn, self.wgen1_apply_btn, self.wgen2_apply_btn,
-                  self.timebase_apply_btn, self.trigger_apply_btn]
+                  self.timebase_apply_btn, self.trigger_apply_btn,
+                  self.measure_btn, self.autoscale_btn]  # NEW: Measurement buttons
         for btn in buttons:  # Iterate all operation buttons
             try:
                 btn.configure(state='normal')  # Enable button (clickable)
@@ -1346,12 +1384,96 @@ class EnhancedResponsiveAutomationGUI:
                                        f"Screenshot: 1 file\n"
                                        f"CSV files: {csv_count}\n"
                                        f"Plots: {plot_count}")
+                
+                elif status_type == "measurement_complete":
+                    channel = data['channel']
+                    meas_type = data['type']
+                    formatted = data['formatted']
+                    self.measurement_result_var.set(formatted)
+                    self.log_message(f"✓ {channel} {meas_type} = {formatted}", "SUCCESS")
+                    self.update_status("Measurement complete")
+
+                elif status_type == "autoscale_complete":
+                    self.log_message(data, "SUCCESS")
+                    self.update_status("Autoscale complete")
+
         except queue.Empty:  # No more messages in queue
             pass
         except Exception as e:
             print(f"Status update error: {e}")
         finally:
             self.root.after(100, self.check_status_updates)  # Check again after 100ms
+
+    def perform_measurement(self):
+        """Execute measurement on selected channel."""
+        def measure_task():
+            try:
+                channel_str = self.measurement_channel_var.get()
+                channel = int(channel_str.replace("CH", ""))
+                measurement_type = self.measurement_type_var.get()
+                self.log_message(f"Measuring {measurement_type} on {channel_str}...", "INFO")
+                self.update_status(f"Measuring {measurement_type}...")
+                result = self.oscilloscope.measure_single(channel, measurement_type)
+                if result is not None:
+                    formatted_result = self._format_measurement_result(measurement_type, result)
+                    self.status_queue.put(('measurement_complete', {'channel': channel_str, 'type': measurement_type, 'value': result, 'formatted': formatted_result}))
+                else:
+                    self.status_queue.put(('error', f"Measurement failed: No data from {channel_str}"))
+            except Exception as e:
+                self.log_message(f"Measurement error: {e}", "ERROR")
+                self.status_queue.put(('error', f"Measurement error: {e}"))
+        threading.Thread(target=measure_task, daemon=True).start()
+
+    def _format_measurement_result(self, meas_type: str, value: float) -> str:
+        """Format measurement result with units."""
+        if meas_type == "FREQ":
+            if abs(value) >= 1e6:
+                return f"{value/1e6:.3f} MHz"
+            elif abs(value) >= 1e3:
+                return f"{value/1e3:.3f} kHz"
+            else:
+                return f"{value:.3f} Hz"
+        elif meas_type in ["PERiod", "RISE", "FALL"]:
+            if abs(value) >= 1.0:
+                return f"{value:.3f} s"
+            elif abs(value) >= 1e-3:
+                return f"{value*1e3:.3f} ms"
+            elif abs(value) >= 1e-6:
+                return f"{value*1e6:.3f} µs"
+            elif abs(value) >= 1e-9:
+                return f"{value*1e9:.3f} ns"
+            else:
+                return f"{value*1e12:.3f} ps"
+        elif meas_type in ["VAMP", "VAVG", "VRMS", "VMAX", "VMIN"]:
+            if abs(value) >= 1.0:
+                return f"{value:.3f} V"
+            elif abs(value) >= 1e-3:
+                return f"{value*1e3:.3f} mV"
+            else:
+                return f"{value*1e6:.3f} µV"
+        elif meas_type in ["PDUTy", "NDUTy"]:
+            return f"{value:.2f} %"
+        else:
+            return f"{value:.3e}"
+
+    def perform_autoscale(self):
+        """Execute autoscale."""
+        def autoscale_task():
+            try:
+                self.log_message("Executing autoscale...", "INFO")
+                self.update_status("Autoscaling...")
+                self.root.after(0, lambda: self.autoscale_btn.config(state='disabled'))
+                success = self.oscilloscope.autoscale()
+                self.root.after(0, lambda: self.autoscale_btn.config(state='normal'))
+                if success:
+                    self.status_queue.put(('autoscale_complete', 'Autoscale completed successfully'))
+                else:
+                    self.status_queue.put(('error', 'Autoscale failed'))
+            except Exception as e:
+                self.log_message(f"Autoscale error: {e}", "ERROR")
+                self.status_queue.put(('error', f"Autoscale error: {e}"))
+                self.root.after(0, lambda: self.autoscale_btn.config(state='normal'))
+        threading.Thread(target=autoscale_task, daemon=True).start()
 
     def run(self):
         """Start the application main event loop."""
