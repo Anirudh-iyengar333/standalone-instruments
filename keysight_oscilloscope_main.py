@@ -57,6 +57,18 @@ except ImportError as e:
     print(f"Error importing instrument control modules: {e}")
     print("Please ensure the instrument_control package is in your Python path")
     sys.exit(1)
+def parse_timebase_string(value: str) -> float:
+    value = value.strip().lower()
+    if "ns" in value:
+        return float(value.replace("ns", "").strip()) / 1_000_000_000
+    elif "µs" in value or "us" in value:
+        return float(value.replace("µs", "").replace("us", "").strip()) / 1_000_000
+    elif "ms" in value:
+        return float(value.replace("ms", "").strip()) / 1000
+    elif "s" in value:
+        return float(value.replace("s", "").strip())
+    else:
+        return float(value)  # Default - assume already in seconds
 
 
 class OscilloscopeDataAcquisition:
@@ -137,6 +149,18 @@ class OscilloscopeDataAcquisition:
         except Exception as e:  # Catch any communication or processing errors
             self._logger.error(f"Failed to acquire waveform data from channel {channel}: {e}")
             return None
+    # def parse_timebase_string(value: str) -> float:
+    #     value = value.strip().lower()
+    #     if "ns" in value:
+    #         return float(value.replace("ns", "").strip()) / 1_000_000_000
+    #     elif "µs" in value or "us" in value:
+    #         return float(value.replace("µs", "").replace("us", "").strip()) / 1_000_000
+    #     elif "ms" in value:
+    #         return float(value.replace("ms", "").strip()) / 1000
+    #     elif "s" in value:
+    #         return float(value.replace("s", "").strip())
+    #     else:
+    #         return float(value)  # Default - assume already in seconds
 
     def export_to_csv(self, waveform_data: Dict[str, Any], custom_path: Optional[str] = None, 
                      filename: Optional[str] = None) -> Optional[str]:
@@ -654,10 +678,11 @@ class EnhancedResponsiveAutomationGUI:
         """Apply timebase configuration to oscilloscope via background thread."""
         def timebase_config_thread():  # Background thread worker function
             try:
-                time_scale = self.time_scale_var.get()  # Retrieve time/div setting from GUI
-                time_offset = self.time_offset_var.get()  # Retrieve horizontal offset from GUI
+                time_scale_str = self.time_scale_var.get()  # Retrieve time/div setting from GUI
+                time_scale = parse_timebase_string(time_scale_str)  # Converts "10 ms" to 0.01time_offset = self.time_offset_var.get()  # Retrieve horizontal offset from GUI
+                time_offset = self.time_offset_var.get()
                 self.update_status("Configuring timebase...")  # Update status display
-                self.log_message(f"Configuring timebase: {time_scale}s/div, offset {time_offset}s")
+                self.log_message(f"Configuring timebase: {time_scale_str} ({time_scale}s/div), offset {time_offset}s")
                 success = self.oscilloscope.configure_timebase(time_scale, time_offset)  # Call oscilloscope method from instrument_control
                 if success:
                     self.status_queue.put(("timebase_configured", f"Timebase configured: {time_scale}s/div"))
