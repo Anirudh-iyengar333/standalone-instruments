@@ -48,6 +48,9 @@ import tkinter as tk  # Core GUI framework for creating windows and widgets
 from tkinter import ttk, messagebox, filedialog, scrolledtext  # Advanced GUI components: themed widgets, dialogs, text areas
 import pandas as pd  # Data manipulation and CSV export functionality
 import matplotlib.pyplot as plt  # Publication-quality graph plotting and visualization
+import matplotlib
+matplotlib.rcParams['agg.path.chunksize'] = 10000  # Fix for large datasets
+matplotlib.rcParams['path.simplify'] = True
 import numpy as np  # Numerical array operations for waveform statistics
 
 try:
@@ -557,7 +560,7 @@ class EnhancedResponsiveAutomationGUI:
         ttk.Label(fgen_frame, text="Wave:", font=('Arial', 8)).grid(row=0, column=col, sticky='w', padx=(5, 2))
         col += 1
         self.wgen1_waveform_var = tk.StringVar(value="SIN")  # WGEN1 waveform type
-        ttk.Combobox(fgen_frame, textvariable=self.wgen1_waveform_var, values=["SIN", "SQU", "RAMP", "PULS", "DC", "NOIS"], width=6, state='readonly', font=('Arial', 8)).grid(row=0, column=col, padx=(0, 5))
+        ttk.Combobox(fgen_frame, textvariable=self.wgen1_waveform_var, values=["SIN", "SQU", "RAMP", "PULS", "DC", "NOIS", "ARB", "SINC", "EXPR", "EXPF", "CARD", "GAUS"], width=6, state='readonly', font=('Arial', 8)).grid(row=0, column=col, padx=(0, 5))
         col += 1
         ttk.Label(fgen_frame, text="Freq(Hz):", font=('Arial', 8)).grid(row=0, column=col, sticky='w', padx=(0, 2))
         col += 1
@@ -586,7 +589,7 @@ class EnhancedResponsiveAutomationGUI:
         ttk.Label(fgen_frame, text="Wave:", font=('Arial', 8)).grid(row=1, column=col, sticky='w', padx=(5, 2), pady=(3, 0))
         col += 1
         self.wgen2_waveform_var = tk.StringVar(value="SIN")  # WGEN2 waveform type
-        ttk.Combobox(fgen_frame, textvariable=self.wgen2_waveform_var, values=["SIN", "SQU", "RAMP", "PULS", "DC", "NOIS"], width=6, state='readonly', font=('Arial', 8)).grid(row=1, column=col, padx=(0, 5), pady=(3, 0))
+        ttk.Combobox(fgen_frame, textvariable=self.wgen2_waveform_var, values=["SIN", "SQU", "RAMP", "PULS", "DC", "NOIS", "ARB", "SINC", "EXPR", "EXPF", "CARD", "GAUS"], width=6, state='readonly', font=('Arial', 8)).grid(row=1, column=col, padx=(0, 5), pady=(3, 0))
         col += 1
         ttk.Label(fgen_frame, text="Freq(Hz):", font=('Arial', 8)).grid(row=1, column=col, sticky='w', padx=(0, 2), pady=(3, 0))
         col += 1
@@ -1424,37 +1427,79 @@ class EnhancedResponsiveAutomationGUI:
                 self.status_queue.put(('error', f"Measurement error: {e}"))
         threading.Thread(target=measure_task, daemon=True).start()
 
+    # def _format_measurement_result(self, meas_type: str, value: float) -> str:
+    #     """Format measurement result with units."""
+    #     if meas_type == "FREQ":
+    #         if abs(value) >= 1e6:
+    #             return f"{value/1e6:.3f} MHz"
+    #         elif abs(value) >= 1e3:
+    #             return f"{value/1e3:.3f} kHz"
+    #         else:
+    #             return f"{value:.3f} Hz"
+    #     elif meas_type in ["PERiod", "RISE", "FALL"]:
+    #         if abs(value) >= 1.0:
+    #             return f"{value:.3f} s"
+    #         elif abs(value) >= 1e-3:
+    #             return f"{value*1e3:.3f} ms"
+    #         elif abs(value) >= 1e-6:
+    #             return f"{value*1e6:.3f} µs"
+    #         elif abs(value) >= 1e-9:
+    #             return f"{value*1e9:.3f} ns"
+    #         else:
+    #             return f"{value*1e12:.3f} ps"
+    #     elif meas_type in ["VAMP", "VAVG", "VRMS", "VMAX", "VMIN"]:
+    #         if abs(value) >= 1.0:
+    #             return f"{value:.3f} V"
+    #         elif abs(value) >= 1e-3:
+    #             return f"{value*1e3:.3f} mV"
+    #         else:
+    #             return f"{value*1e6:.3f} µV"
+    #     elif meas_type in ["PDUTy", "NDUTy"]:
+    #         return f"{value:.2f} %"
+    #     else:
+    #         return f"{value:.3e}"
     def _format_measurement_result(self, meas_type: str, value: float) -> str:
-        """Format measurement result with units."""
+        """
+        Format measurement result with SI units—never fake or override the value.
+        Always show EXACTLY what was measured, even if it's unreasonable.
+        """
+        warning = ""
+        # Optional: Add a warning only if it's a truly wild value
+        if abs(value) > 1e12:
+            warning = " [Warning: Out of expected range]"
+        # Frequency
         if meas_type == "FREQ":
             if abs(value) >= 1e6:
-                return f"{value/1e6:.3f} MHz"
+                return f"{value/1e6:.3f} MHz{warning}"
             elif abs(value) >= 1e3:
-                return f"{value/1e3:.3f} kHz"
+                return f"{value/1e3:.3f} kHz{warning}"
             else:
-                return f"{value:.3f} Hz"
+                return f"{value:.3f} Hz{warning}"
+        # Time
         elif meas_type in ["PERiod", "RISE", "FALL"]:
             if abs(value) >= 1.0:
-                return f"{value:.3f} s"
+                return f"{value:.3f} s{warning}"
             elif abs(value) >= 1e-3:
-                return f"{value*1e3:.3f} ms"
+                return f"{value*1e3:.3f} ms{warning}"
             elif abs(value) >= 1e-6:
-                return f"{value*1e6:.3f} µs"
+                return f"{value*1e6:.3f} µs{warning}"
             elif abs(value) >= 1e-9:
-                return f"{value*1e9:.3f} ns"
+                return f"{value*1e9:.3f} ns{warning}"
             else:
-                return f"{value*1e12:.3f} ps"
+                return f"{value*1e12:.3f} ps{warning}"
+        # Voltage
         elif meas_type in ["VAMP", "VAVG", "VRMS", "VMAX", "VMIN"]:
             if abs(value) >= 1.0:
-                return f"{value:.3f} V"
+                return f"{value:.3f} V{warning}"
             elif abs(value) >= 1e-3:
-                return f"{value*1e3:.3f} mV"
+                return f"{value*1e3:.3f} mV{warning}"
             else:
-                return f"{value*1e6:.3f} µV"
+                return f"{value*1e6:.3f} µV{warning}"
+        # Duty Cycle
         elif meas_type in ["PDUTy", "NDUTy"]:
-            return f"{value:.2f} %"
-        else:
-            return f"{value:.3e}"
+            return f"{value:.2f} %{warning}"
+        # All others: just show as-is with warning if suspiciously big
+        return f"{value} (raw){warning}"
 
     def perform_autoscale(self):
         """Execute autoscale."""
