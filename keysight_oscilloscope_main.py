@@ -224,30 +224,91 @@ class OscilloscopeDataAcquisition:
             self._logger.error(f"Failed to export CSV: {e}")
             return None
 
+#     def generate_waveform_plot(self, waveform_data: Dict[str, Any], custom_path: Optional[str] = None,
+#                               filename: Optional[str] = None, plot_title: Optional[str] = None) -> Optional[str]:
+#         """
+#         Generate publication-quality plot with embedded statistics.
+        
+#         Creates a matplotlib figure showing voltage vs. time with grid overlay,
+#         and adds a statistics box (max, min, mean, RMS, std dev) calculated from
+#         the waveform for immediate visual analysis without external tools.
+        
+#         Args:
+#             waveform_data (Dict): Waveform dictionary from acquire_waveform_data()
+#             custom_path (Optional[str]): Override default save directory (None→default)
+#             filename (Optional[str]): Override auto-generated filename (None→auto-generate)
+#             plot_title (Optional[str]): Custom plot title (None→auto-generate from channel)
+        
+#         Returns:
+#             str: Full path to saved PNG file, or None if generation fails
+        
+#         Raises:
+#             Logs errors internally; returns None on failure (non-blocking)
+#         """
+#         if not waveform_data:  # Validate input data exists
+#             self._logger.error("No waveform data to plot")
+#             return None
+
+#         try:
+#             save_dir = Path(custom_path) if custom_path else self.default_graph_dir  # Select output directory
+#             self.scope.setup_output_directories()  # Create default directory structure if needed
+#             save_dir.mkdir(parents=True, exist_ok=True)  # Create target directory with parent folders
+#             if filename is None:  # Auto-generate filename if not provided
+#                 timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")  # Create readable timestamp
+#                 filename = f"waveform_plot_ch{waveform_data['channel']}_{timestamp}.png"  # Compose descriptive filename
+#             if not filename.lower().endswith(('.png', '.jpg', '.jpeg')):  # Validate image format
+#                 filename += '.png'  # Default to PNG if extension missing
+#             filepath = save_dir / filename  # Construct full file path
+#             plt.figure(figsize=(12, 8))  # Create new figure with wide aspect ratio for readability
+#             plt.plot(waveform_data['time'], waveform_data['voltage'], 'b-', linewidth=1)  # Plot waveform as blue line
+#             if plot_title is None:  # Auto-generate title if not provided
+#                 plot_title = f"Oscilloscope Waveform - Channel {waveform_data['channel']}"
+#             plt.title(plot_title, fontsize=14, fontweight='bold')  # Add descriptive title
+#             plt.xlabel('Time (s)', fontsize=12)  # Label X-axis with units
+#             plt.ylabel('Voltage (V)', fontsize=12)  # Label Y-axis with units
+#             plt.grid(True, alpha=0.3)  # Enable semi-transparent grid for reference
+#             voltage_array = np.array(waveform_data['voltage'])  # Convert to NumPy array for statistics
+#             stats_text = f"""Statistics:
+# Max: {np.max(voltage_array):.3f} V
+# Min: {np.min(voltage_array):.3f} V
+# Mean: {np.mean(voltage_array):.3f} V
+# RMS: {np.sqrt(np.mean(voltage_array**2)):.3f} V
+# Std Dev: {np.std(voltage_array):.3f} V
+# Points: {len(voltage_array)}"""  # Compute and format statistical summary
+#             plt.text(0.02, 0.98, stats_text, transform=plt.gca().transAxes,
+#                     fontsize=10, verticalalignment='top',
+#                     bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8))  # Embed statistics box in plot corner
+#             plt.tight_layout()  # Adjust spacing to prevent label cutoff
+#             plt.savefig(filepath, dpi=1600, bbox_inches='tight')  # Save at high resolution (1600 DPI) for publication
+#             plt.close()  # Release memory by closing figure
+#             self._logger.info(f"Plot saved successfully: {filepath}")
+#             return str(filepath)  # Return path as string for downstream processing
+#         except Exception as e:  # Catch plotting or file I/O errors
+#             self._logger.error(f"Failed to generate plot: {e}")
+#             return None
+    # Always perform fresh measurements before plotting
+    
+
+# Then update measurements_text as you already do, but use this new 'measurements' dict
+
     def generate_waveform_plot(self, waveform_data: Dict[str, Any], custom_path: Optional[str] = None,
-                              filename: Optional[str] = None, plot_title: Optional[str] = None) -> Optional[str]:
+                                filename: Optional[str] = None, plot_title: Optional[str] = None) -> Optional[str]:
         """
-        Generate publication-quality plot with embedded statistics.
-        
+        Generate publication-quality plot with embedded MEASUREMENTS (not statistics).
         Creates a matplotlib figure showing voltage vs. time with grid overlay,
-        and adds a statistics box (max, min, mean, RMS, std dev) calculated from
-        the waveform for immediate visual analysis without external tools.
-        
-        Args:
-            waveform_data (Dict): Waveform dictionary from acquire_waveform_data()
-            custom_path (Optional[str]): Override default save directory (None→default)
-            filename (Optional[str]): Override auto-generated filename (None→auto-generate)
-            plot_title (Optional[str]): Custom plot title (None→auto-generate from channel)
-        
-        Returns:
-            str: Full path to saved PNG file, or None if generation fails
-        
-        Raises:
-            Logs errors internally; returns None on failure (non-blocking)
+        and adds a measurement box containing values reported by the oscilloscope.
         """
-        if not waveform_data:  # Validate input data exists
-            self._logger.error("No waveform data to plot")
-            return None
+        measurements = {}
+        measurement_types = ["FREQ", "PERiod", "VPP", "VAMP", "OVERshoot", "VTOP", "VBASe", "VAVG", "VRMS", "VMAX", "VMIN", "RISE", "FALL", "DUTYcycle", "NDUTy"]
+        for meas_type in measurement_types:
+            try:
+                value = self.scope.measure_single(waveform_data['channel'], meas_type)
+                measurements[meas_type] = value
+            except:
+                    measurements[meas_type] = None
+            if not waveform_data:
+                self._logger.error("No waveform data to plot")
+                return None
 
         try:
             save_dir = Path(custom_path) if custom_path else self.default_graph_dir  # Select output directory
@@ -259,6 +320,7 @@ class OscilloscopeDataAcquisition:
             if not filename.lower().endswith(('.png', '.jpg', '.jpeg')):  # Validate image format
                 filename += '.png'  # Default to PNG if extension missing
             filepath = save_dir / filename  # Construct full file path
+
             plt.figure(figsize=(12, 8))  # Create new figure with wide aspect ratio for readability
             plt.plot(waveform_data['time'], waveform_data['voltage'], 'b-', linewidth=1)  # Plot waveform as blue line
             if plot_title is None:  # Auto-generate title if not provided
@@ -267,25 +329,41 @@ class OscilloscopeDataAcquisition:
             plt.xlabel('Time (s)', fontsize=12)  # Label X-axis with units
             plt.ylabel('Voltage (V)', fontsize=12)  # Label Y-axis with units
             plt.grid(True, alpha=0.3)  # Enable semi-transparent grid for reference
-            voltage_array = np.array(waveform_data['voltage'])  # Convert to NumPy array for statistics
-            stats_text = f"""Statistics:
-Max: {np.max(voltage_array):.3f} V
-Min: {np.min(voltage_array):.3f} V
-Mean: {np.mean(voltage_array):.3f} V
-RMS: {np.sqrt(np.mean(voltage_array**2)):.3f} V
-Std Dev: {np.std(voltage_array):.3f} V
-Points: {len(voltage_array)}"""  # Compute and format statistical summary
-            plt.text(0.02, 0.98, stats_text, transform=plt.gca().transAxes,
-                    fontsize=10, verticalalignment='top',
-                    bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8))  # Embed statistics box in plot corner
-            plt.tight_layout()  # Adjust spacing to prevent label cutoff
-            plt.savefig(filepath, dpi=1600, bbox_inches='tight')  # Save at high resolution (1600 DPI) for publication
-            plt.close()  # Release memory by closing figure
+
+            # Display MEASUREMENTS
+            #measurements = waveform_data.get('measurements', {})
+
+            measurements_text = "MEASUREMENTS:\n"
+            measurements_text += "─" * 25 + "\n"
+            measurements_text += f"Freq: {measurements.get('FREQ','N/A')} Hz\n"
+            measurements_text += f"Period: {measurements.get('PERiod','N/A')} s\n"
+            measurements_text += f"VPP: {measurements.get('VPP','N/A')} V\n"
+            measurements_text += f"VAVG: {measurements.get('VAVG','N/A')} V\n"
+            measurements_text += f"OVERshoot: {measurements.get('OVERshoot','N/A')} V\n"
+            measurements_text += f"VMAX: {measurements.get('VMAX','N/A')} V\n"
+            measurements_text += f"VMIN: {measurements.get('VMIN','N/A')} V\n"
+            measurements_text += f"DUTYcycle: {measurements.get('DUTYcycle','N/A')} %\n"
+            measurements_text += f"NDUTy: {measurements.get('NDUTy','N/A')} %\n"
+            # measurements_text += f"Pcycle: {measurements.get('Pcycle', 'N/A')}\n"
+            # measurements_text += f"Ncycle: {measurements.get('Ncycle', 'N/A')}\n"
+
+            plt.text(0.02, 0.98, measurements_text, 
+                     transform=plt.gca().transAxes,
+                     fontsize=9, 
+                     verticalalignment='top',
+                     bbox=dict(boxstyle='round', facecolor='lightblue', alpha=0.85),
+                     family='monospace')
+
+            plt.tight_layout()
+            plt.savefig(filepath, dpi=1600, bbox_inches='tight')
+            plt.close()
             self._logger.info(f"Plot saved successfully: {filepath}")
-            return str(filepath)  # Return path as string for downstream processing
-        except Exception as e:  # Catch plotting or file I/O errors
+            return str(filepath)
+
+        except Exception as e:
             self._logger.error(f"Failed to generate plot: {e}")
             return None
+
 
 
 class EnhancedResponsiveAutomationGUI:
