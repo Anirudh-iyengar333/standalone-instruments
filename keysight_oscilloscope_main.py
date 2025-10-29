@@ -1353,9 +1353,10 @@ class EnhancedResponsiveAutomationGUI:
             for name, path in folders:  # Open each folder
                 try:
                     path_obj = Path(path)  # Convert string to Path
-                    path_obj.mkdir(parents=True, exist_ok=True)  # Create if needed
+                    if not path_obj.is_dir():
+                        path_obj.mkdir(parents=True)
                     if platform.system() == "Windows":  # Windows: use explorer
-                        subprocess.run(['explorer', str(path_obj)], check=True)
+                        subprocess.run(['explorer', str(path_obj)], check=False)
                     elif platform.system() == "Darwin":  # macOS: use open command
                         subprocess.run(['open', str(path_obj)], check=True)
                     else:  # Linux: use xdg-open

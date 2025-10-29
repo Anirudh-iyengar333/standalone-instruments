@@ -50,7 +50,7 @@ class KeysightDSOX6004A:
 
         # ✓ VERIFIED: Measurement types from manual pages 616-619, 645-711
         self._measurement_types = [
-            "FREQ",        # Frequency (pg 651)
+            "FREQ" ,        # Frequency (pg 651)
             "PERiod",      # Period (pg 675)
             "VPP",         # Peak-to-Peak Voltage (pg 711)
             "VAMP",        # Amplitude (pg 706)
