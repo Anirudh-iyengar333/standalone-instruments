@@ -80,6 +80,52 @@ TRIGGER_SLOPE_MAP = {
 }
 
 
+def _format_si_value(value: float, kind: str) -> str:
+    v = abs(value)
+    if kind == "freq":
+        if v >= 1e9:
+            return f"{value/1e9:.3f} GHz"
+        if v >= 1e6:
+            return f"{value/1e6:.3f} MHz"
+        if v >= 1e3:
+            return f"{value/1e3:.3f} kHz"
+        return f"{value:.3f} Hz"
+    if kind == "time":
+        if v >= 1:
+            return f"{value:.3f} s"
+        if v >= 1e-3:
+            return f"{value*1e3:.3f} ms"
+        if v >= 1e-6:
+            return f"{value*1e6:.3f} µs"
+        if v >= 1e-9:
+            return f"{value*1e9:.3f} ns"
+        return f"{value*1e12:.3f} ps"
+    if kind == "volt":
+        if v >= 1e3:
+            return f"{value/1e3:.3f} kV"
+        if v >= 1:
+            return f"{value:.3f} V"
+        if v >= 1e-3:
+            return f"{value*1e3:.3f} mV"
+        return f"{value*1e6:.3f} µV"
+    if kind == "percent":
+        return f"{value:.2f} %"
+    return f"{value}"
+
+
+def format_measurement_value(meas_type: str, value: Optional[float]) -> str:
+    if value is None:
+        return "N/A"
+    if meas_type == "FREQ":
+        return _format_si_value(value, "freq")
+    if meas_type in ["PERiod", "RISE", "FALL"]:
+        return _format_si_value(value, "time")
+    if meas_type in ["VAMP", "VTOP", "VBASe", "VAVG", "VRMS", "VMAX", "VMIN", "VPP"]:
+        return _format_si_value(value, "volt")
+    if meas_type in ["DUTYcycle", "NDUTy", "OVERshoot"]:
+        return _format_si_value(value, "percent")
+    return f"{value}"
+
 class OscilloscopeDataAcquisition:
     """
     Oscilloscope Data Management Handler
@@ -361,15 +407,15 @@ class OscilloscopeDataAcquisition:
 
             measurements_text = "MEASUREMENTS:\n"
             measurements_text += "─" * 25 + "\n"
-            measurements_text += f"Freq: {measurements.get('FREQ','N/A')} Hz\n"
-            measurements_text += f"Period: {measurements.get('PERiod','N/A')} s\n"
-            measurements_text += f"VPP: {measurements.get('VPP','N/A')} V\n"
-            measurements_text += f"VAVG: {measurements.get('VAVG','N/A')} V\n"
-            measurements_text += f"OVERshoot: {measurements.get('OVERshoot','N/A')} V\n"
-            measurements_text += f"VMAX: {measurements.get('VMAX','N/A')} V\n"
-            measurements_text += f"VMIN: {measurements.get('VMIN','N/A')} V\n"
-            measurements_text += f"DUTYcycle: {measurements.get('DUTYcycle','N/A')} %\n"
-            measurements_text += f"NDUTy: {measurements.get('NDUTy','N/A')} %\n"
+            measurements_text += f"Freq: {format_measurement_value('FREQ', measurements.get('FREQ'))}\n"
+            measurements_text += f"Period: {format_measurement_value('PERiod', measurements.get('PERiod'))}\n"
+            measurements_text += f"VPP: {format_measurement_value('VPP', measurements.get('VPP'))}\n"
+            measurements_text += f"VAVG: {format_measurement_value('VAVG', measurements.get('VAVG'))}\n"
+            measurements_text += f"OVERshoot: {format_measurement_value('OVERshoot', measurements.get('OVERshoot'))}\n"
+            measurements_text += f"VMAX: {format_measurement_value('VMAX', measurements.get('VMAX'))}\n"
+            measurements_text += f"VMIN: {format_measurement_value('VMIN', measurements.get('VMIN'))}\n"
+            measurements_text += f"DUTYcycle: {format_measurement_value('DUTYcycle', measurements.get('DUTYcycle'))}\n"
+            measurements_text += f"NDUTy: {format_measurement_value('NDUTy', measurements.get('NDUTy'))}\n"
             # measurements_text += f"Pcycle: {measurements.get('Pcycle', 'N/A')}\n"
             # measurements_text += f"Ncycle: {measurements.get('Ncycle', 'N/A')}\n"
 
@@ -442,6 +488,8 @@ class EnhancedResponsiveAutomationGUI:
         self.live_feed_paused = False
         self.live_feed_worker_running = False  # Prevent overlapping acquisitions
         self.io_lock = threading.RLock()  # Serialize all VISA/SCPI access
+        # Declare trigger level variables dict early so type checkers see the attribute
+        self.channel_trigger_vars: dict[int, tk.DoubleVar] = {}
         self.check_status_updates()  # Start polling for status updates from worker threads
 
     def setup_logging(self):
@@ -605,7 +653,7 @@ class EnhancedResponsiveAutomationGUI:
         ttk.Label(config_frame, text="Probe:", font=('Arial', 8)).grid(row=0, column=col, sticky='w')
         col += 1
         self.probe_var = tk.DoubleVar(value=1.0)  # Probe attenuation factor (1×, 10×, 100×)
-        ttk.Combobox(config_frame, textvariable=self.probe_var, values=[1.0, 10.0, 100.0], 
+        ttk.Combobox(config_frame, textvariable=self.probe_var, values=["1.0", "10.0", "100.0"], 
                     width=5, state='readonly', font=('Arial', 8)).grid(row=0, column=col, padx=(0, 8))
         col += 1
         self.config_channel_btn = ttk.Button(config_frame, text="Configure", 
@@ -892,7 +940,7 @@ class EnhancedResponsiveAutomationGUI:
         
         self.live_feed_rate_var = tk.IntVar(value=500)
         rate_combo = ttk.Combobox(controls_frame, textvariable=self.live_feed_rate_var,
-                                  values=[100, 200, 500, 1000, 2000], width=6, state='readonly', font=('Arial', 8))
+                                  values=["100", "200", "500", "1000", "2000"], width=6, state='readonly', font=('Arial', 8))
         rate_combo.grid(row=0, column=col, padx=(0, 2))
         col += 1
         
@@ -1014,10 +1062,14 @@ class EnhancedResponsiveAutomationGUI:
         
         def acquire_and_update():
             try:
+                daq = self.data_acquisition
+                if not daq:
+                    self.status_queue.put(("error", "Not connected"))
+                    return
                 channel = self.live_feed_channel_var.get()
                 # Reduce points for responsiveness and lower I/O load
                 max_points = 2500 if self.live_feed_rate_var.get() <= 500 else 5000
-                waveform_data = self.data_acquisition.acquire_waveform_data(channel, max_points=max_points)
+                waveform_data = daq.acquire_waveform_data(channel, max_points=max_points)
                 
                 if waveform_data:
                     # Update plot on main thread
@@ -1072,12 +1124,16 @@ class EnhancedResponsiveAutomationGUI:
         def timebase_config_thread():  # Background thread worker function
             try:
                 time_scale_str = self.time_scale_var.get()  # Retrieve time/div setting from GUI
-                time_scale = parse_timebase_string(time_scale_str)  # Converts "10 ms" to 0.01time_offset = self.time_offset_var.get()  # Retrieve horizontal offset from GUI
-                time_offset = self.time_offset_var.get()
+                time_scale = parse_timebase_string(time_scale_str)  # Converts label to seconds per division
+                time_offset = self.time_offset_var.get()  # Retrieve horizontal offset from GUI
                 self.update_status("Configuring timebase...")  # Update status display
                 self.log_message(f"Configuring timebase: {time_scale_str} ({time_scale}s/div), offset {time_offset}s")
+                osc = self.oscilloscope
+                if not (osc and osc.is_connected):
+                    self.status_queue.put(("error", "Not connected"))
+                    return
                 with self.io_lock:
-                    success = self.oscilloscope.configure_timebase(time_scale, time_offset)  # Call oscilloscope method from instrument_control
+                    success = osc.configure_timebase(time_scale, time_offset)  # Call oscilloscope method
                 if success:
                     self.status_queue.put(("timebase_configured", f"Timebase configured: {time_scale}s/div"))
                 else:
@@ -1100,8 +1156,12 @@ class EnhancedResponsiveAutomationGUI:
                 channel = int(trigger_source.replace("CH", ""))  # Extract channel number (e.g., "CH1" → 1)
                 self.update_status("Configuring trigger...")  # Update status display
                 self.log_message(f"Configuring trigger: {trigger_source}, {trigger_level}V, {trigger_slope} edge")
+                osc = self.oscilloscope
+                if not (osc and osc.is_connected):
+                    self.status_queue.put(("error", "Not connected"))
+                    return
                 with self.io_lock:
-                    success = self.oscilloscope.configure_trigger(channel, trigger_level, trigger_slope)  # Call oscilloscope method from instrument_control
+                    success = osc.configure_trigger(channel, trigger_level, trigger_slope)
                 if success:
                     self.status_queue.put(("trigger_configured", f"Trigger configured: {trigger_source} @ {trigger_level}V"))
                 else:
@@ -1124,8 +1184,12 @@ class EnhancedResponsiveAutomationGUI:
                 for channel, var in self.channel_trigger_vars.items():  # Iterate each channel
                     trigger_level = var.get()  # Retrieve trigger level from GUI
                     self.log_message(f"Setting Ch{channel} trigger level: {trigger_level}V")
+                    osc = self.oscilloscope
+                    if not (osc and osc.is_connected):
+                        self.status_queue.put(("error", "Not connected"))
+                        return
                     with self.io_lock:
-                        success = self.oscilloscope.configure_trigger(channel, trigger_level, "POS")  # Call oscilloscope method (positive edge only for batch)
+                        success = osc.configure_trigger(channel, trigger_level, "POS")  # Positive edge for batch
                     if success:
                         success_count += 1  # Increment success counter
                         self.log_message(f"Ch{channel} trigger level set successfully", "SUCCESS")
@@ -1214,7 +1278,7 @@ class EnhancedResponsiveAutomationGUI:
             filename = filedialog.asksaveasfilename(
                 defaultextension=".txt",  # Default to .txt extension
                 filetypes=[("Text files", "*.txt"), ("All files", "*.*")],
-                initialname=f"oscilloscope_log_{timestamp}.txt"  # Suggested filename with timestamp
+                initialfile=f"oscilloscope_log_{timestamp}.txt"  # Suggested filename with timestamp
             )
             if filename:  # User selected a file (didn't cancel)
                 with open(filename, 'w') as f:  # Open file for writing
@@ -1357,8 +1421,12 @@ class EnhancedResponsiveAutomationGUI:
                     offset = self.wgen2_offset_var.get()  # Get DC offset
                 self.update_status(f"Configuring WGEN{generator}...")  # Update status display
                 self.log_message(f"Configuring WGEN{generator}: {waveform}, {frequency}Hz, {amplitude}Vpp, {offset}V offset, Enable: {enable}")
+                osc = self.oscilloscope
+                if not (osc and osc.is_connected):
+                    self.status_queue.put(("error", "Not connected"))
+                    return
                 with self.io_lock:
-                    success = self.oscilloscope.configure_function_generator(
+                    success = osc.configure_function_generator(
                         generator=generator,  # Function generator number
                         waveform=waveform,  # Waveform type
                         frequency=frequency,  # Frequency in Hz
@@ -1394,8 +1462,12 @@ class EnhancedResponsiveAutomationGUI:
                 success_count = 0  # Count successful configurations
                 for channel in selected_channels:  # Configure each selected channel
                     self.log_message(f"Configuring Ch{channel}...")
+                    osc = self.oscilloscope
+                    if not (osc and osc.is_connected):
+                        self.status_queue.put(("error", "Not connected"))
+                        return
                     with self.io_lock:
-                        success = self.oscilloscope.configure_channel(
+                        success = osc.configure_channel(
                             channel=channel,  # Channel number
                             vertical_scale=v_scale,  # Vertical scale in V/div
                             vertical_offset=v_offset,  # Vertical offset in volts
@@ -1428,8 +1500,12 @@ class EnhancedResponsiveAutomationGUI:
                 self.log_message("Capturing screenshot...")
                 screenshot_dir = Path(self.screenshot_path_var.get())  # Get save directory
                 screenshot_dir.mkdir(parents=True, exist_ok=True)  # Create directory if needed
+                osc = self.oscilloscope
+                if not (osc and osc.is_connected):
+                    self.status_queue.put(("error", "Not connected"))
+                    return
                 with self.io_lock:
-                    filename = self.oscilloscope.capture_screenshot()  # Call oscilloscope method
+                    filename = osc.capture_screenshot()  # Call oscilloscope method
                 if filename:  # Check if capture succeeded
                     original_path = Path(filename)  # Convert to Path object
                     if original_path.parent != screenshot_dir:  # Check if need to move file
@@ -1437,9 +1513,7 @@ class EnhancedResponsiveAutomationGUI:
                         import shutil
                         shutil.move(str(original_path), str(new_path))  # Move file to destination
                         filename = str(new_path)  # Update filename
-                    self.status_queue.put(("screenshot_success", filename))
-                else:
-                    self.status_queue.put(("error", "Screenshot failed"))
+                self.status_queue.put(("screenshot_success", filename))
             except Exception as e:
                 self.status_queue.put(("error", f"Screenshot error: {str(e)}"))
         if self.oscilloscope and self.oscilloscope.is_connected:  # Verify connection
@@ -1457,10 +1531,14 @@ class EnhancedResponsiveAutomationGUI:
                     return
                 self.update_status(f"Acquiring data from {len(selected_channels)} channel(s)...")  # Update status
                 self.log_message(f"Acquiring data from channels: {selected_channels}")
+                daq = self.data_acquisition
+                if not daq:
+                    self.status_queue.put(("error", "Not connected"))
+                    return
                 all_channel_data = {}  # Dictionary to store data from all channels
                 for channel in selected_channels:  # Acquire from each selected channel
                     self.log_message(f"Acquiring Ch{channel}...")
-                    data = self.data_acquisition.acquire_waveform_data(channel)  # Call data acquisition method
+                    data = daq.acquire_waveform_data(channel)  # Call data acquisition method
                     if data:  # Check if acquisition succeeded
                         all_channel_data[channel] = data  # Store channel data
                         self.log_message(f"Ch{channel}: {data['points_count']} points acquired", "SUCCESS")
@@ -1487,17 +1565,21 @@ class EnhancedResponsiveAutomationGUI:
                 self.update_status("Exporting CSV...")  # Update status
                 self.log_message("Exporting CSV...")
                 exported_files = []  # List to store exported file paths
+                daq = self.data_acquisition
+                if not daq:
+                    self.status_queue.put(("error", "Not connected"))
+                    return
                 if isinstance(self.last_acquired_data, dict) and 'channel' not in self.last_acquired_data:
                     # Multi-channel data: dictionary keyed by channel number
                     for channel, data in self.last_acquired_data.items():
-                        filename = self.data_acquisition.export_to_csv(
+                        filename = daq.export_to_csv(
                             data, custom_path=self.data_path_var.get())  # Call data handler method
                         if filename:
                             exported_files.append(filename)  # Add to list
                             self.log_message(f"Ch{channel} CSV exported: {Path(filename).name}", "SUCCESS")
                 else:
                     # Single channel data (backward compatibility)
-                    filename = self.data_acquisition.export_to_csv(
+                    filename = daq.export_to_csv(
                         self.last_acquired_data, custom_path=self.data_path_var.get())
                     if filename:
                         exported_files.append(filename)  # Add to list
@@ -1519,6 +1601,10 @@ class EnhancedResponsiveAutomationGUI:
                 self.update_status("Generating plot...")  # Update status
                 generated_plots = []  # List to store generated plot paths
                 custom_title = self.graph_title_var.get().strip() or None  # Get custom plot title
+                daq = self.data_acquisition
+                if not daq:
+                    self.status_queue.put(("error", "Not connected"))
+                    return
                 if isinstance(self.last_acquired_data, dict) and 'channel' not in self.last_acquired_data:
                     # Multi-channel data: dictionary keyed by channel number
                     self.log_message(f"Generating plots for {len(self.last_acquired_data)} channel(s)...")
@@ -1527,14 +1613,14 @@ class EnhancedResponsiveAutomationGUI:
                             channel_title = f"{custom_title} - Channel {channel}"
                         else:
                             channel_title = None
-                        filename = self.data_acquisition.generate_waveform_plot(
+                        filename = daq.generate_waveform_plot(
                             data, custom_path=self.graph_path_var.get(), plot_title=channel_title)  # Call data handler method
                         if filename:
                             generated_plots.append(filename)  # Add to list
                             self.log_message(f"Ch{channel} plot generated: {Path(filename).name}", "SUCCESS")
                 else:
                     # Single channel data (backward compatibility)
-                    filename = self.data_acquisition.generate_waveform_plot(
+                    filename = daq.generate_waveform_plot(
                         self.last_acquired_data, custom_path=self.graph_path_var.get(), plot_title=custom_title)
                     if filename:
                         generated_plots.append(filename)  # Add to list
@@ -1558,8 +1644,13 @@ class EnhancedResponsiveAutomationGUI:
                 self.log_message(f"Starting full automation for channels: {selected_channels}...")
                 self.update_status("Step 1/4: Screenshot...")  # Update status
                 self.log_message("Step 1/4: Screenshot...")
+                osc = self.oscilloscope
+                daq = self.data_acquisition
+                if not (osc and osc.is_connected and daq):
+                    self.status_queue.put(("error", "Not connected"))
+                    return
                 with self.io_lock:
-                    screenshot_file = self.oscilloscope.capture_screenshot()  # Capture display
+                    screenshot_file = osc.capture_screenshot()  # Capture display
                 if screenshot_file:  # Move to user directory if needed
                     screenshot_dir = Path(self.screenshot_path_var.get())
                     screenshot_dir.mkdir(parents=True, exist_ok=True)
@@ -1574,7 +1665,7 @@ class EnhancedResponsiveAutomationGUI:
                 all_channel_data = {}  # Dictionary for all channel data
                 for channel in selected_channels:  # Acquire each channel
                     self.log_message(f"Acquiring Ch{channel}...")
-                    data = self.data_acquisition.acquire_waveform_data(channel)
+                    data = daq.acquire_waveform_data(channel)
                     if data:
                         all_channel_data[channel] = data  # Store channel data
                         self.log_message(f"Ch{channel}: {data['points_count']} points acquired", "SUCCESS")
@@ -1586,7 +1677,7 @@ class EnhancedResponsiveAutomationGUI:
                 self.log_message("Step 3/4: Exporting CSV...")
                 csv_files = []  # List for exported CSV paths
                 for channel, data in all_channel_data.items():  # Export each channel
-                    csv_file = self.data_acquisition.export_to_csv(data, custom_path=self.data_path_var.get())
+                    csv_file = daq.export_to_csv(data, custom_path=self.data_path_var.get())
                     if csv_file:
                         csv_files.append(csv_file)  # Add to list
                         self.log_message(f"Ch{channel} CSV exported", "SUCCESS")
@@ -1600,7 +1691,7 @@ class EnhancedResponsiveAutomationGUI:
                         channel_title = f"{custom_title} - Channel {channel}"
                     else:
                         channel_title = None
-                    plot_file = self.data_acquisition.generate_waveform_plot(
+                    plot_file = daq.generate_waveform_plot(
                         data, custom_path=self.graph_path_var.get(), plot_title=channel_title)
                     if plot_file:
                         plot_files.append(plot_file)  # Add to list
@@ -1775,8 +1866,12 @@ class EnhancedResponsiveAutomationGUI:
                 measurement_type = self.measurement_type_var.get()
                 self.log_message(f"Measuring {measurement_type} on {channel_str}...", "INFO")
                 self.update_status(f"Measuring {measurement_type}...")
+                osc = self.oscilloscope
+                if not (osc and osc.is_connected):
+                    self.status_queue.put(('error', 'Not connected'))
+                    return
                 with self.io_lock:
-                    result = self.oscilloscope.measure_single(channel, measurement_type)
+                    result = osc.measure_single(channel, measurement_type)
                 if result is not None:
                     formatted_result = self._format_measurement_result(measurement_type, result)
                     self.status_queue.put(('measurement_complete', {'channel': channel_str, 'type': measurement_type, 'value': result, 'formatted': formatted_result}))
@@ -1788,47 +1883,13 @@ class EnhancedResponsiveAutomationGUI:
         threading.Thread(target=measure_task, daemon=True).start()
 
     def _format_measurement_result(self, meas_type: str, value: float) -> str:
-        """
-        Format measurement result with SI units—never fake or override the value.
-        Always show EXACTLY what was measured, even if it's unreasonable.
-        """
         warning = ""
-        # Optional: Add a warning only if it's a truly wild value
         if abs(value) > 1e12:
             warning = " [Warning: Out of expected range]"
-        # Frequency
-        if meas_type == "FREQ":
-            if abs(value) >= 1e6:
-                return f"{value/1e6:.3f} MHz{warning}"
-            elif abs(value) >= 1e3:
-                return f"{value/1e3:.3f} kHz{warning}"
-            else:
-                return f"{value:.3f} Hz{warning}"
-        # Time
-        elif meas_type in ["PERiod", "RISE", "FALL"]:
-            if abs(value) >= 1.0:
-                return f"{value:.3f} s{warning}"
-            elif abs(value) >= 1e-3:
-                return f"{value*1e3:.3f} ms{warning}"
-            elif abs(value) >= 1e-6:
-                return f"{value*1e6:.3f} µs{warning}"
-            elif abs(value) >= 1e-9:
-                return f"{value*1e9:.3f} ns{warning}"
-            else:
-                return f"{value*1e12:.3f} ps{warning}"
-        # Voltage
-        elif meas_type in ["VAMP", "VTOP", "VBASe", "VAVG", "VRMS", "VMAX", "VMIN", "VPP",]:
-            if abs(value) >= 1.0:
-                return f"{value:.3f} V{warning}"
-            elif abs(value) >= 1e-3:
-                return f"{value*1e3:.3f} mV{warning}"
-            else:
-                return f"{value*1e6:.3f} µV{warning}"
-        # Duty Cycle
-        elif meas_type in ["DUTYcycle", "NDUTy","OVERshoot"]:
-            return f"{value:.2f} %{warning}"
-        # All others: just show as-is with warning if suspiciously big
-        return f"{value} (raw){warning}"
+        base = format_measurement_value(meas_type, value)
+        if warning:
+            return f"{base}{warning}"
+        return base
 
     def perform_autoscale(self):
         """Execute autoscale."""
@@ -1837,8 +1898,13 @@ class EnhancedResponsiveAutomationGUI:
                 self.log_message("Executing autoscale...", "INFO")
                 self.update_status("Autoscaling...")
                 self.root.after(0, lambda: self.autoscale_btn.config(state='disabled'))
+                osc = self.oscilloscope
+                if not (osc and osc.is_connected):
+                    self.status_queue.put(('error', 'Not connected'))
+                    self.root.after(0, lambda: self.autoscale_btn.config(state='normal'))
+                    return
                 with self.io_lock:
-                    success = self.oscilloscope.autoscale()
+                    success = osc.autoscale()
                 self.root.after(0, lambda: self.autoscale_btn.config(state='normal'))
                 if success:
                     self.status_queue.put(('autoscale_complete', 'Autoscale completed successfully'))
