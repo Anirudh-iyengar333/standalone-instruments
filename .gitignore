@@ -1,0 +1,43 @@
+# Python cache and build artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.build/
+.dist/
+.eggs/
+.python-version
+
+# Virtual environments
+.venv/
+venv/
+.env/
+
+# IDE/editor settings
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs and local data
+*.log
+logs/
+
+# Generated outputs
+/data/
+/graphs/
+/screenshots/
+/oscilloscope_data/
+/oscilloscope_graphs/
+/oscilloscope_screenshots/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Matplotlib cache
+~/.cache/matplotlib/
