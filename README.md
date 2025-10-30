@@ -25,7 +25,8 @@ Standalone inst controls/
 ├── combined_launcher.py         # Menu to launch individual GUIs
 ├── keithley_dmm_main.py         # DMM GUI
 ├── keithley_power_supply_automation.py  # PSU GUI
-├── keysight_oscilloscope_main.py        # Oscilloscope GUI (with live feed)
+├── keysight_oscilloscope_main.py        # Oscilloscope GUI (without live feed)
+├── keysight_oscilloscope_main_with_livefeed.py        # Oscilloscope GUI (with live feed)
 ├── unified_lab_automation_FIXED.py      # Integrated multi-instrument GUI
 ├── data/ graphs/ screenshots/           # Default output folders
 ├── requirements.txt
@@ -63,6 +64,7 @@ python combined_launcher.py          # menu launcher
 python keysight_oscilloscope_main.py
 python keithley_dmm_main.py
 python keithley_power_supply_automation.py
+python keysight_oscilloscope_main_with_livefeed.py
 ```
 
 ## Configuration
