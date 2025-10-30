@@ -129,7 +129,7 @@ class DMMDataHandler:
         self.default_data_dir = Path.cwd() / "dmm_data"  # CSV data files directory
         self.default_graph_dir = Path.cwd() / "dmm_graphs"  # Graph images directory
 
-    def add_measurement(self, measurement_type: str, value: float, unit: str, timestamp: datetime = None):
+    def add_measurement(self, measurement_type: str, value: float, unit: str, timestamp: Optional[datetime] = None):
         """
         Add a single measurement record to the data collection
         
@@ -669,7 +669,7 @@ class KeithleyDMMAutomationGUI:
         
         self.nplc_var = tk.DoubleVar(value=1.0)  # Default: 1 power line cycle (20ms at 50Hz)
         self.nplc_cb = ttk.Combobox(config_frame, textvariable=self.nplc_var,
-            values=[0.01, 0.02, 0.06, 0.2, 1.0, 2.0, 10.0],  # Common NPLC values
+            values=["0.01", "0.02", "0.06", "0.2", "1.0", "2.0", "10.0"],  # Common NPLC values
             state='readonly', font=('Arial', 10), width=8)  # Read-only dropdown
         self.nplc_cb.grid(row=0, column=7, sticky='w')  # Place at end
 
@@ -935,7 +935,7 @@ class KeithleyDMMAutomationGUI:
             filename = filedialog.asksaveasfilename(
                 defaultextension=".txt",  # Default extension
                 filetypes=[("Text files", "*.txt"), ("All files", "*.*")],  # File type filters
-                initialname=f"dmm_log_{timestamp}.txt")  # Suggested filename with timestamp
+                initialfile=f"dmm_log_{timestamp}.txt")  # Suggested filename with timestamp
             
             if filename:  # User selected a file (didn't cancel)
                 log_content = self.log_text.get(1.0, tk.END)  # Get all log text
@@ -1143,6 +1143,8 @@ class KeithleyDMMAutomationGUI:
                 func = self.get_measurement_function()  # Get selected measurement type
                 params = self.get_measurement_parameters()  # Get configured parameters
                 
+                if not self.dmm:
+                    raise RuntimeError("DMM not connected")
                 value = self.dmm.measure(func, **params)  # Perform measurement on DMM
                 
                 if value is not None:  # Measurement succeeded (returned valid number)
@@ -1219,6 +1221,8 @@ class KeithleyDMMAutomationGUI:
                     func = self.get_measurement_function()  # Get selected measurement type
                     params = self.get_measurement_parameters()  # Get configured parameters
                     
+                    if not self.dmm:
+                        raise RuntimeError("DMM not connected")
                     value = self.dmm.measure(func, **params)  # Perform measurement
                     
                     if value is not None:  # Measurement succeeded

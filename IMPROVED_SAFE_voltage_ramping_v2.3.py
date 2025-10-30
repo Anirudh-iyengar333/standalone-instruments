@@ -23,7 +23,7 @@ import threading
 import queue
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Dict, Any
 import math
 
 # Configure matplotlib for thread safety BEFORE importing pyplot
@@ -44,6 +44,11 @@ try:
     from instrument_control.keysight_oscilloscope import KeysightDSOX6004A
 except Exception as e:
     print(f"Warning: instrument modules unavailable: {e}")
+    # Define placeholder types to avoid unbound errors
+    KeithleyPowerSupply = None  # type: ignore
+    KeithleyDMM6500 = None  # type: ignore
+    KeysightDSOX6004A = None  # type: ignore
+    MeasurementFunction = None  # type: ignore
 
 # Optional helper from the oscilloscope automation app (reuse its data-acquisition/export/plot helpers)
 try:
@@ -361,7 +366,7 @@ class ImprovedDataManager:
             ax2.annotate(f'Max err {err_max:.4f} V', xy=(t_max, meas_v[max_idx]), xytext=(t_max, max(set_v[max_idx], meas_v[max_idx]) + 0.12),
                          arrowprops=dict(arrowstyle='->', color='black'), fontsize=9, bbox=dict(boxstyle='round', fc='white', alpha=0.85))
             p95 = np.percentile(errors, 95)
-            ax2.axhline(p95, color='#9467bd', ls='--', lw=1.25, alpha=0.8)
+            ax2.axhline(float(p95), color='#9467bd', ls='--', lw=1.25, alpha=0.8)
             ax2.text(0.98, 0.02, f'95% err ≤ {p95:.4f} V', transform=ax2.transAxes, ha='right', va='bottom', fontsize=9, bbox=dict(boxstyle='round', fc='white', alpha=0.6))
         except Exception:
             pass
@@ -374,7 +379,7 @@ class ImprovedDataManager:
         ax_hist.tick_params(axis='y', labelsize=9)
 
         # Regression and scatter inset on ax2 (set vs measured)
-        inset = ax2.inset_axes([0.02, 0.52, 0.30, 0.40])
+        inset = ax2.inset_axes((0.02, 0.52, 0.30, 0.40))
         inset.scatter(set_v, meas_v, s=18, c='#6a3d9a', alpha=0.55, edgecolors='none')
         inset.set_xlabel('Set V (V)', fontsize=9)
         inset.set_ylabel('Meas V (V)', fontsize=9)
@@ -510,7 +515,7 @@ class ImprovedDataManager:
         footer = f"Saved: {fp}"
         fig.text(0.01, 0.01, footer, fontsize=8, color='gray')
 
-        plt.tight_layout(rect=[0, 0.02, 1, 0.96])
+        plt.tight_layout(rect=(0, 0.02, 1, 0.96))
         plt.savefig(fp, dpi=300)
         plt.close(fig)
         self.logger.info(f"Saved combined graph: {fp}")
@@ -539,10 +544,16 @@ class ImprovedSafeVoltageRampingGUI:
         self.main_frame = ttk.Frame(self.root, padding="5")
         self.main_frame.grid(row=0, column=0, sticky='nsew', padx=5, pady=5)
 
-        # Instruments
-        self.power_supply: Optional[KeithleyPowerSupply] = None
-        self.dmm: Optional[KeithleyDMM6500] = None
-        self.oscilloscope: Optional[KeysightDSOX6004A] = None
+        # Instruments (use Any to avoid type errors when classes might be None)
+        self.power_supply: Any = None
+        self.dmm: Any = None
+        self.oscilloscope: Any = None
+        # Oscilloscope data helper and cache
+        self.osc_data: Optional[Any] = None
+        self.last_osc_data: Optional[Dict[int, Any]] = None
+        # Ramping state
+        self.current_profile: List[Tuple[float, float]] = []
+        self.eta_total_seconds: float = 0.0
 
         # Data manager & waveform
         self.data_manager = ImprovedDataManager()
@@ -832,7 +843,7 @@ class ImprovedSafeVoltageRampingGUI:
 
         # PSU active channel selector and per-channel waveform assignments
         ttk.Label(config_frame, text='Active PSU Channel:', font=('Segoe UI', 11, 'bold')).grid(row=3, column=2, sticky='w', padx=(10, 10), pady=(15, 0))
-        channel_combo = ttk.Combobox(config_frame, values=[1, 2, 3, 4], textvariable=self.psu_active_channel_var, state='readonly', width=6)
+        channel_combo = ttk.Combobox(config_frame, values=["1", "2", "3", "4"], textvariable=self.psu_active_channel_var, state='readonly', width=6)
         channel_combo.grid(row=3, column=3, sticky='w', pady=(15, 0))
 
         ttk.Label(config_frame, text='Per-Channel Waveforms (optional):', font=('Segoe UI', 10)).grid(row=4, column=0, sticky='w', padx=(0, 10), pady=(10, 0))
@@ -931,6 +942,8 @@ class ImprovedSafeVoltageRampingGUI:
                     return
                 all_data = {}
                 for ch in channels:
+                    if not self.osc_data:
+                        continue
                     data = self.osc_data.acquire_waveform_data(ch)
                     if data:
                         all_data[ch] = data
@@ -956,6 +969,8 @@ class ImprovedSafeVoltageRampingGUI:
                     return
                 exported = []
                 for ch, data in self.last_osc_data.items():
+                    if not self.osc_data:
+                        continue
                     fp = self.osc_data.export_to_csv(data, custom_path=self.scope_data_path_var.get())
                     if fp:
                         exported.append(fp)
@@ -977,6 +992,8 @@ class ImprovedSafeVoltageRampingGUI:
                     return
                 files = []
                 for ch, data in self.last_osc_data.items():
+                    if not self.osc_data:
+                        continue
                     fp = self.osc_data.generate_waveform_plot(data, custom_path=self.scope_graphs_path_var.get(), plot_title=self.graph_title_var.get() or None)
                     if fp:
                         files.append(fp)
@@ -1006,6 +1023,8 @@ class ImprovedSafeVoltageRampingGUI:
                 except Exception:
                     pass
                 for ch in channels:
+                    if not self.osc_data:
+                        continue
                     d = self.osc_data.acquire_waveform_data(ch)
                     if d:
                         results['data'][ch] = d
@@ -1148,10 +1167,13 @@ class ImprovedSafeVoltageRampingGUI:
     def connect_psu(self):
         def connect_thread():
             try:
+                if KeithleyPowerSupply is None:
+                    self.status_queue.put(('error', 'KeithleyPowerSupply class not available'))
+                    return
                 self.log_message('Connecting to power supply...', 'INFO')
                 visa_address = self.psu_visa_var.get().strip()
                 self.power_supply = KeithleyPowerSupply(visa_address)
-                if self.power_supply.connect():
+                if self.power_supply and self.power_supply.connect():
                     self.power_supply.configure_channel(1, 0.0, 0.1, 0.5, False)
                     self.status_queue.put(('psu_connected', 'PSU connected and initialized to safe state'))
                 else:
@@ -1186,10 +1208,13 @@ class ImprovedSafeVoltageRampingGUI:
     def connect_dmm(self):
         def connect_thread():
             try:
+                if KeithleyDMM6500 is None:
+                    self.status_queue.put(('error', 'KeithleyDMM6500 class not available'))
+                    return
                 self.log_message('Connecting to DMM...', 'INFO')
                 visa_address = self.dmm_visa_var.get().strip()
                 self.dmm = KeithleyDMM6500(visa_address)
-                if self.dmm.connect():
+                if self.dmm and self.dmm.connect():
                     self.status_queue.put(('dmm_connected', 'DMM connected successfully'))
                 else:
                     raise Exception('DMM connection failed')
@@ -1211,10 +1236,13 @@ class ImprovedSafeVoltageRampingGUI:
     def connect_scope(self):
         def connect_thread():
             try:
+                if KeysightDSOX6004A is None:
+                    self.status_queue.put(('error', 'KeysightDSOX6004A class not available'))
+                    return
                 self.log_message('Connecting to oscilloscope...', 'INFO')
                 visa_address = self.scope_visa_var.get().strip()
                 self.oscilloscope = KeysightDSOX6004A(visa_address)
-                if self.oscilloscope.connect():
+                if self.oscilloscope and self.oscilloscope.connect():
                     # Create the high-level oscilloscope helper if available
                     try:
                         if OscilloscopeDataAcquisition:
@@ -1389,6 +1417,8 @@ class ImprovedSafeVoltageRampingGUI:
 
                 try:
                     # Pre-configure the selected active channel
+                    if not self.power_supply:
+                        raise Exception('Power supply not connected')
                     self.power_supply.configure_channel(int(active_channel), 0.0, current_limit_cfg, ovp_const, True)
                 except Exception as e:
                     self.status_queue.put(('error', f'PSU pre-configuration failed: {e}'))
@@ -1405,14 +1435,18 @@ class ImprovedSafeVoltageRampingGUI:
                     try:
                         if voltage > 5.0 or ovp_const > 5.5:
                             raise Exception(f"Voltage exceeds safety limits: {voltage}V (OVP: {ovp_const}V)")
-
-                        success = self.power_supply.configure_channel(channel=int(active_channel), voltage=voltage, current_limit=current_limit_cfg, ovp_level=ovp_const, enable_output=True)
-                        if not success:
+                        if not self.power_supply:
+                            raise Exception('Power supply disconnected during ramping')
+                        if self.power_supply.configure_channel(int(active_channel), voltage, current_limit_cfg, ovp_const, True):
+                            pass
+                        else:
                             raise Exception('PSU configuration command failed')
 
                         time.sleep(float(self.psu_settle_var.get()))
 
-                        measured_voltage = self.dmm.measure(MeasurementFunction.DC_VOLTAGE, nplc=nplc)
+                        # Measure voltage (use enum if available, fallback to string)
+                        meas_func = MeasurementFunction.DC_VOLTAGE if MeasurementFunction else "DC_VOLTAGE"
+                        measured_voltage = self.dmm.measure(meas_func, nplc=nplc)
                         if measured_voltage is None:
                             self.log_message(f'DMM reading failed at point {i}', 'WARNING')
                             measured_voltage = 0.0
@@ -1705,7 +1739,7 @@ class ImprovedSafeVoltageRampingGUI:
     def save_log(self):
         try:
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            filename = filedialog.asksaveasfilename(defaultextension='.txt', filetypes=[('Text files', '*.txt'), ('All files', '*.*')], initialname=f'safe_ramping_log_{timestamp}.txt', title='Save Activity Log')
+            filename = filedialog.asksaveasfilename(defaultextension='.txt', filetypes=[('Text files', '*.txt'), ('All files', '*.*')], initialfile=f'safe_ramping_log_{timestamp}.txt', title='Save Activity Log')
             if filename:
                 log_content = self.log_text.get(1.0, tk.END)
                 with open(filename, 'w') as f:

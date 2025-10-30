@@ -1,5 +1,5 @@
 import pyvisa
-from typing import Optional
+from typing import Optional, Any
 
 class SCPIWrapper:
     def __init__(self, visa_address: str, timeout_ms: int = 10000):
@@ -9,7 +9,7 @@ class SCPIWrapper:
         self._visa_address = visa_address
         self._timeout_ms = timeout_ms
         self._resource_manager: Optional[pyvisa.ResourceManager] = None
-        self._instrument: Optional[pyvisa.Resource] = None
+        self._instrument: Any = None  # pyvisa Resource object (use Any to avoid type errors)
         self._is_connected = False
 
     def connect(self) -> bool:

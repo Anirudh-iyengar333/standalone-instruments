@@ -97,7 +97,7 @@ class KeithleyDMM6500:
 
         # Initialize VISA communication objects
         self._resource_manager: Optional[pyvisa.ResourceManager] = None
-        self._instrument: Optional[pyvisa.Resource] = None
+        self._instrument: Any = None  # pyvisa Resource object (use Any to avoid type errors)
         self._is_connected = False
 
         # Initialize logging for this instance
@@ -304,7 +304,8 @@ class KeithleyDMM6500:
             if nplc is not None:
                 # Validate NPLC value
                 if nplc not in self._valid_nplc_values:
-                    valid_nplc = min(self._valid_nplc_values, key=lambda x: abs(x - nplc))
+                    nplc_val = nplc if nplc is not None else 1.0
+                    valid_nplc = min(self._valid_nplc_values, key=lambda x: abs(x - nplc_val))
                     self._logger.warning(f"Invalid NPLC {nplc}, using {valid_nplc}")
                     nplc = valid_nplc
 
@@ -635,7 +636,8 @@ class KeithleyDMM6500:
             if nplc is not None:
                 try:
                     if nplc not in self._valid_nplc_values:
-                        valid_nplc = min(self._valid_nplc_values, key=lambda x: abs(x - nplc))
+                        nplc_val = nplc if nplc is not None else 1.0
+                        valid_nplc = min(self._valid_nplc_values, key=lambda x: abs(x - nplc_val))
                         self._logger.warning(f"Invalid NPLC {nplc}, using {valid_nplc}")
                         nplc = valid_nplc
                     self._instrument.write(f":SENSe:{prefix}:NPLC {nplc}")

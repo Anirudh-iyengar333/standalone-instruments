@@ -865,6 +865,8 @@ class PowerSupplyAutomationGUI:
                 self.update_status("Retrieving instrument information...")  # Update status
                 self.log_message("Getting instrument information...")  # Log operation
                 
+                if not self.power_supply:
+                    raise RuntimeError("Power supply not connected")
                 info = self.power_supply.get_instrument_info()  # Query device (calls *IDN?)
                 
                 if info:  # Check if info retrieved successfully
@@ -929,6 +931,8 @@ class PowerSupplyAutomationGUI:
                 self.log_message(f"Configuring channel {channel} - V: {voltage:.3f}V, I: {current_limit:.3f}A, OVP: {ovp_level:.1f}V")  # Log settings
                 
                 # Send configuration to power supply
+                if not self.power_supply:
+                    raise RuntimeError("Power supply not connected")
                 success = self.power_supply.configure_channel(
                     channel=channel,
                     voltage=voltage,
@@ -966,6 +970,8 @@ class PowerSupplyAutomationGUI:
                 self.update_status(f"Enabling output on channel {channel}...")  # Update status
                 self.log_message(f"Enabling output on channel {channel}...")  # Log operation
                 
+                if not self.power_supply:
+                    raise RuntimeError("Power supply not connected")
                 success = self.power_supply.enable_channel_output(channel)  # Send enable command
                 
                 if success:  # Enable succeeded
@@ -996,6 +1002,8 @@ class PowerSupplyAutomationGUI:
                 self.update_status(f"Disabling output on channel {channel}...")  # Update status
                 self.log_message(f"Disabling output on channel {channel}...")  # Log operation
                 
+                if not self.power_supply:
+                    raise RuntimeError("Power supply not connected")
                 success = self.power_supply.disable_channel_output(channel)  # Send disable command
                 
                 if success:  # Disable succeeded
@@ -1025,10 +1033,13 @@ class PowerSupplyAutomationGUI:
             try:
                 self.update_status(f"Measuring channel {channel} output...")  # Update status
                 
+                if not self.power_supply:
+                    raise RuntimeError("Power supply not connected")
                 measurement = self.power_supply.measure_channel_output(channel)  # Get readings
                 
-                if measurement:  # Measurement succeeded
-                    voltage, current = measurement  # Unpack voltage and current
+                if measurement and isinstance(measurement, tuple) and len(measurement) == 2:  # Measurement succeeded
+                    voltage = float(measurement[0])  # Extract voltage
+                    current = float(measurement[1])  # Extract current
                     power = voltage * current  # Calculate power in watts
                     
                     self.status_queue.put(("channel_measured", {
@@ -1081,10 +1092,13 @@ class PowerSupplyAutomationGUI:
                     try:
                         self.log_message(f"Measuring channel {channel}...")  # Log current operation
                         
+                        if not self.power_supply:
+                            raise RuntimeError("Power supply not connected")
                         measurement = self.power_supply.measure_channel_output(channel)  # Get readings
                         
-                        if measurement:  # Measurement succeeded
-                            voltage, current = measurement  # Unpack values
+                        if measurement and isinstance(measurement, tuple) and len(measurement) == 2:  # Measurement succeeded
+                            voltage = float(measurement[0])  # Extract voltage
+                            current = float(measurement[1])  # Extract current
                             power = voltage * current  # Calculate power
                             
                             self.status_queue.put(("channel_measured", {
@@ -1130,6 +1144,8 @@ class PowerSupplyAutomationGUI:
                 self.update_status("Disabling all outputs...")  # Update status
                 self.log_message("Emergency shutdown - disabling all outputs...")  # Log event
                 
+                if not self.power_supply:
+                    raise RuntimeError("Power supply not connected")
                 success = self.power_supply.disable_all_outputs()  # Send shutdown command
                 
                 if success:  # All outputs disabled
@@ -1190,7 +1206,11 @@ class PowerSupplyAutomationGUI:
                     measurement = self.power_supply.measure_channel_output(channel)  # Get readings
                     
                     if measurement:  # Measurement succeeded
-                        voltage, current = measurement  # Unpack values
+                        if isinstance(measurement, tuple) and len(measurement) == 2:
+                            voltage = float(measurement[0])  # Extract voltage
+                            current = float(measurement[1])  # Extract current
+                        else:
+                            continue
                         power = voltage * current  # Calculate power
                         
                         # Update display labels
