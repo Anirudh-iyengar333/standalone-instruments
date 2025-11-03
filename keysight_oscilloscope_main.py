@@ -550,11 +550,11 @@ class EnhancedResponsiveAutomationGUI:
                                           values=timebase_scales, width=8, state='readonly', font=('Arial', 8))
         self.timebase_combo.grid(row=0, column=col, padx=(0, 5))
         col += 1
-        ttk.Label(timebase_frame, text="Offset(s):", font=('Arial', 8)).grid(row=0, column=col, sticky='w', padx=(0, 2))
-        col += 1
-        self.time_offset_var = tk.DoubleVar(value=0.0)  # Horizontal position offset (seconds)
-        ttk.Entry(timebase_frame, textvariable=self.time_offset_var, width=8, font=('Arial', 8)).grid(row=0, column=col, padx=(0, 8))
-        col += 1
+        # ttk.Label(timebase_frame, text="Offset(s):", font=('Arial', 8)).grid(row=0, column=col, sticky='w', padx=(0, 2))
+        # col += 1
+        # self.time_offset_var = tk.DoubleVar(value=0.0)  # Horizontal position offset (seconds)
+        # ttk.Entry(timebase_frame, textvariable=self.time_offset_var, width=8, font=('Arial', 8)).grid(row=0, column=col, padx=(0, 8))
+        # col += 1
         self.timebase_apply_btn = ttk.Button(timebase_frame, text="Apply Timebase", 
                                            command=self.configure_timebase, 
                                            style='Primary.TButton', state='disabled')  # Initially disabled until connected
@@ -771,14 +771,14 @@ class EnhancedResponsiveAutomationGUI:
             try:
                 time_scale_str = self.time_scale_var.get()  # Retrieve time/div setting from GUI
                 time_scale = parse_timebase_string(time_scale_str)
-                time_offset = self.time_offset_var.get()
+                #time_offset = self.time_offset_var.get()
                 self.update_status("Configuring timebase...")  # Update status display
-                self.log_message(f"Configuring timebase: {time_scale_str} ({time_scale}s/div), offset {time_offset}s")
+                self.log_message(f"Configuring timebase: {time_scale_str} ({time_scale}s/div)")
                 osc = self.oscilloscope
                 if not (osc and osc.is_connected):
                     self.status_queue.put(("error", "Not connected"))
                     return
-                success = osc.configure_timebase(time_scale, time_offset)
+                success = osc.configure_timebase(time_scale)
                 if success:
                     self.status_queue.put(("timebase_configured", f"Timebase configured: {time_scale}s/div"))
                 else:
