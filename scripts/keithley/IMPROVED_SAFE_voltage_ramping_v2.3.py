@@ -36,7 +36,9 @@ import tkinter as tk
 from tkinter import ttk, messagebox, filedialog, scrolledtext
 import numpy as np
 import pandas as pd
-
+script_dir = Path(__file__).resolve().parent.parent.parent
+if str(script_dir) not in sys.path:
+    sys.path.append(str(script_dir))
 # Import instrument control modules. If unavailable, allow UI to run for development.
 try:
     from instrument_control.keithley_power_supply import KeithleyPowerSupply
@@ -52,9 +54,10 @@ except Exception as e:
 
 # Optional helper from the oscilloscope automation app (reuse its data-acquisition/export/plot helpers)
 try:
-    from keysight_oscilloscope_main import OscilloscopeDataAcquisition
-except Exception:
-    OscilloscopeDataAcquisition = None
+    from scripts.keysight.keysight_oscilloscope_main import OscilloscopeDataAcquisition
+except Exception as e:
+    print(f"Warning: Could not import OscilloscopeDataAcquisition: {e}")
+    OscilloscopeDataAcquisition = None  # type: ignore
 
 
 class WaveformGenerator:

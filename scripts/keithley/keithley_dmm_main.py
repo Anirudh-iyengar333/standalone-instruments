@@ -72,12 +72,18 @@ import numpy as np  # Numerical array operations for statistical calculations
 # ============================================================================
 # INSTRUMENT CONTROL IMPORTS - Custom modules for device communication
 # ============================================================================
+# Add parent directories to Python path to find instrument_control
+script_dir = Path(__file__).resolve().parent.parent.parent
+if str(script_dir) not in sys.path:
+    sys.path.append(str(script_dir))
+
 try:
     # Primary import method: from instrument_control package
     from instrument_control.keithley_dmm import KeithleyDMM6500, KeithleyDMM6500Error, MeasurementFunction  # DMM driver and enumerations
 except ImportError as e:
     # Error handling: driver not found
     print(f"Error importing instrument control modules: {e}")  # Print error message
+    print(f"Current Python path: {sys.path}")  # Show current Python path for debugging
     print("Please ensure the instrument_control package is in your Python path")  # Provide guidance
     sys.exit(1)  # Exit program with error status
 

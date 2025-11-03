@@ -47,21 +47,29 @@ from tkinter import ttk, messagebox, filedialog, scrolledtext  # Advanced GUI co
 import math  # Mathematical functions for waveform generation (sine, etc.)
 import os  # Operating system interface for file and directory operations
 import csv  # CSV file format handling for data export
+from pathlib import Path  # Object-oriented filesystem path handling
+
+# Add parent directories to Python path to find instrument_control
+script_dir = Path(__file__).resolve().parent.parent.parent
+if str(script_dir) not in sys.path:
+    sys.path.append(str(script_dir))
 
 # Import instrument control module (Keithley Power Supply driver)
 try:
     # Primary import method: from instrument_control package
     from instrument_control.keithley_power_supply import KeithleyPowerSupply  # Main driver class
-except ImportError:
+except ImportError as e:
     try:
         # Fallback import method: direct module import
         import instrument_control.keithley_power_supply  # Alternative module access
         KeithleyPowerSupply = instrument_control.keithley_power_supply.KeithleyPowerSupply  # Extract class
     except ImportError as e:
         # Error handling: driver not found
-        print(f"ERROR: Cannot import keithley_power_supply: {e}")  # Print error message
-        print("Make sure keithley_power_supply.py is in the same directory")  # Provide guidance
-        sys.exit(1)  # Exit program with error status
+        print(f"ERROR: Cannot import keithley_power_supply: {e}")
+        print(f"Current Python path: {sys.path}")
+        print(f"Looking for instrument_control in: {script_dir}")
+        print("Please ensure the instrument_control package is in your Python path")
+        sys.exit(1)
 
 
 class PowerSupplyAutomationGUI:

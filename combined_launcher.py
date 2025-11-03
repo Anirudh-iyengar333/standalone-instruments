@@ -23,13 +23,16 @@ from tkinter import ttk  # Imports themed Tk widgets for modern look
 from pathlib import Path  # Simplifies filesystem path handling in a cross-platform way
 
 # ---------------------------------------------------------------------------
-# Resolve absolute paths to the two target automation scripts  # Section header comment
+# Resolve absolute paths to the target automation scripts in the scripts directory
 # ---------------------------------------------------------------------------
 SCRIPT_DIR = Path(__file__).resolve().parent  # Directory where this launcher script resides
-DMM_SCRIPT = SCRIPT_DIR / 'keithley_dmm_main.py'  # Path object for DMM automation script
-PS_SCRIPT = SCRIPT_DIR / 'keithley_power_supply_automation.py'  # Path object for power-supply script
-SCOPE_SCRIPT = SCRIPT_DIR / 'keysight_oscilloscope_main.py'  # Path object for scope automation script
-Voltage_ramp = SCRIPT_DIR / 'IMPROVED_SAFE_voltage_ramping_v2.3.py'  # Path object for voltage ramp script
+SCRIPTS_DIR = SCRIPT_DIR / 'scripts'  # Path to the scripts directory
+
+# Script paths
+DMM_SCRIPT = SCRIPTS_DIR / 'keithley' / 'keithley_dmm_main.py'  # Path to DMM automation script
+PS_SCRIPT = SCRIPTS_DIR / 'keithley' / 'keithley_power_supply_automation.py'  # Path to power-supply script
+SCOPE_SCRIPT = SCRIPTS_DIR / 'keysight' / 'keysight_oscilloscope_main.py'  # Path to scope automation script
+Voltage_ramp = SCRIPTS_DIR / 'keithley' / 'IMPROVED_SAFE_voltage_ramping_v2.3.py'  # Path to voltage ramp script
 # Validate that both scripts exist so we can provide helpful errors early.  # Prevent silent failure
 if not DMM_SCRIPT.is_file():  # Check presence of DMM script file
     sys.exit(f'ERROR: {DMM_SCRIPT} not found – cannot launch DMM GUI')  # Abort with message
