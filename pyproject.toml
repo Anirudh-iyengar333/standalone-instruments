@@ -20,4 +20,4 @@ profile = "black"
 
 [tool.pyright]
 reportMissingImports = true
-pythonVersion = "3.14"
+pythonVersion = "3.12"

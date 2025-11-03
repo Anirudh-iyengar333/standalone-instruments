@@ -1,5 +1,5 @@
 # Python Requirements for Standalone Instrument Controls
-# Tested on Python 3.10–3.12. If you use a newer Python, adjust versions if wheels are unavailable.
+# Recommended: Python 3.12 (fully tested and stable)
 
 # VISA communication
 pyvisa==1.13.0
@@ -16,3 +16,6 @@ Pillow==10.3.0
 # Optional interfaces
 pyserial==3.5    # for RS232/USB-serial instruments
 pyusb==1.2.1     # for USB backend when needed
+
+# Web interface
+gradio==4.44.1
