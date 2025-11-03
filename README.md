@@ -4,7 +4,7 @@ Production-ready Python tools for automating laboratory test and measurement equ
 
 ## Overview
 
-The suite provides standalone GUIs and a unified launcher. It follows a modular design (GUI ↔ drivers) with background threads, queue-based status updates, and robust error handling suitable for production benches.
+The suite provides standalone GUIs and a unified launcher. It follows a modular design with background threads, queue-based status updates, and robust error handling suitable for production benches.
 
 ## Supported Instruments
 
@@ -16,22 +16,20 @@ The suite provides standalone GUIs and a unified launcher. It follows a modular 
 
 ```
 Standalone inst controls/
-├── instrument_control/          # Low-level VISA drivers and SCPI wrappers
-│   ├── keithley_dmm.py
-│   ├── keithley_power_supply.py
-│   ├── keysight_oscilloscope.py
-│   └── scpi_wrapper.py
+├── scripts/
+│   ├── keithley/
+│   │   ├── keithley_dmm_main.py         # DMM GUI
+│   │   ├── keithley_power_supply_automation.py  # PSU GUI
+│   │   └── IMPROVED_SAFE_voltage_ramping_v2.3.py  # Voltage ramp utility
+│   └── keysight/
+│       ├── keysight_oscilloscope_main.py  # Oscilloscope GUI
+│       └── keysight_oscilloscope_gradio.py  # Oscilloscope with Gradio UI
 │
-├── combined_launcher.py         # Menu to launch individual GUIs
-├── keithley_dmm_main.py         # DMM GUI
-├── keithley_power_supply_automation.py  # PSU GUI
-├── keysight_oscilloscope_main.py        # Oscilloscope GUI (without live feed)
-├── keysight_oscilloscope_main_with_livefeed.py        # Oscilloscope GUI (with live feed)
-├── unified_lab_automation_FIXED.py      # Integrated multi-instrument GUI
-├── data/ graphs/ screenshots/           # Default output folders
-├── requirements.txt
-├── README.md
-└── SETUP-INSTRUCTIONS.md
+├── combined_launcher.py         # Unified launcher for all GUIs
+├── requirements.txt             # Python dependencies
+├── pyproject.toml              # Project configuration and tooling
+├── README.md                   # This file
+└── SETUP-INSTRUCTIONS.md       # Detailed setup guide
 ```
 
 ## Key Capabilities
@@ -43,28 +41,47 @@ Standalone inst controls/
 
 ## System Requirements
 
-Hardware
-- Windows 10/11 (recommended), USBTMC-compatible USB ports
-- NI-VISA or Keysight IO Libraries installed
+### Hardware
+- Windows 10/11 (64-bit)
+- USBTMC-compatible USB ports
+- Minimum 4GB RAM (8GB recommended)
 
-Software
-- Python 3.10 – 3.12 (tested). 3.14 may work if wheels are available for your platform.
+### Software
+- Python 3.10 – 3.12 (64-bit)
+- NI-VISA or Keysight IO Libraries Suite
+- Required drivers for your instruments
+
+### Python Dependencies
+- Core: numpy, pandas, pyvisa
+- GUI: tkinter (included with Python), matplotlib
+- Additional tools in requirements-dev.txt for development
 
 ## Quick Start
 
-1) Install drivers and Python packages
-```
-Install NI‑VISA or Keysight IO Libraries
+1. Install the required Python packages:
+```bash
+# Install dependencies
 python -m pip install -r requirements.txt
+
+# Or for development with additional tools:
+python -m pip install -r requirements-dev.txt
 ```
-2) Launch
+
+2. Launch the instrument control launcher:
+```bash
+python combined_launcher.py
 ```
-python combined_launcher.py          # menu launcher
-# or run a specific GUI
-python keysight_oscilloscope_main.py
-python keithley_dmm_main.py
-python keithley_power_supply_automation.py
-python keysight_oscilloscope_main_with_livefeed.py
+
+3. Or run individual instrument GUIs directly:
+```bash
+# For DMM Control
+python scripts/keithley/keithley_dmm_main.py
+
+# For Power Supply Control
+python scripts/keithley/keithley_power_supply_automation.py
+
+# For Oscilloscope
+python scripts/keysight/keysight_oscilloscope_main.py
 ```
 
 ## Configuration
