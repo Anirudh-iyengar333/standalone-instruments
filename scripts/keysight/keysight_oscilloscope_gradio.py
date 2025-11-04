@@ -26,7 +26,7 @@ import tkinter as tk
 from tkinter import filedialog
 from pathlib import Path
 from datetime import datetime
-from typing import Optional, Dict, Any, List, Tuple
+from typing import Optional, Dict, Any, List, Tuple, Union
 import signal
 import atexit
 import os
@@ -347,16 +347,27 @@ class GradioOscilloscopeGUI:
         self.setup_logging()
         self.setup_cleanup_handlers()
         
-        self.timebase_scales = [
-            "1 ns", "2 ns", "5 ns", "10 ns", "20 ns", "50 ns",
-            "100 ns", "200 ns", "500 ns", "1 µs", "2 µs", "5 µs",
-            "10 µs", "20 µs", "50 µs", "100 µs", "200 µs", "500 µs",
-            "1 ms", "2 ms", "5 ms", "10 ms", "20 ms", "50 ms",
-            "100 ms", "200 ms", "500 ms", "1 s", "2 s", "5 s",
-            "10 s", "20 s", "50 s"
+        # Timebase scales as a list of mixed types for Gradio compatibility
+        self.timebase_scales: List[Union[str, int, float, Tuple[str, Union[str, int, float]]]] = [
+            ("1 ns", 1e-9), ("2 ns", 2e-9), ("5 ns", 5e-9),
+            ("10 ns", 10e-9), ("20 ns", 20e-9), ("50 ns", 50e-9),
+            ("100 ns", 100e-9), ("200 ns", 200e-9), ("500 ns", 500e-9),
+            ("1 µs", 1e-6), ("2 µs", 2e-6), ("5 µs", 5e-6),
+            ("10 µs", 10e-6), ("20 µs", 20e-6), ("50 µs", 50e-6),
+            ("100 µs", 100e-6), ("200 µs", 200e-6), ("500 µs", 500e-6),
+            ("1 ms", 1e-3), ("2 ms", 2e-3), ("5 ms", 5e-3),
+            ("10 ms", 10e-3), ("20 ms", 20e-3), ("50 ms", 50e-3),
+            ("100 ms", 100e-3), ("200 ms", 200e-3), ("500 ms", 500e-3),
+            ("1 s", 1.0), ("2 s", 2.0), ("5 s", 5.0),
+            ("10 s", 10.0), ("20 s", 20.0), ("50 s", 50.0)
         ]
         
-        self.measurement_types = ["FREQ", "PERiod", "VPP", "VAMP", "OVERshoot", "VTOP", "VBASe", "VAVG", "VRMS", "VMAX", "VMIN", "RISE", "FALL", "DUTYcycle", "NDUTy"]
+        # Measurement types as a list of strings
+        self.measurement_types = [
+            "FREQ", "PERiod", "VPP", "VAMP", "OVERshoot", "VTOP",
+            "VBASe", "VAVG", "VRMS", "VMAX", "VMIN", "RISE", "FALL",
+            "DUTYcycle", "NDUTy"
+        ]
 
     def setup_logging(self):
         logging.basicConfig(
@@ -477,17 +488,25 @@ class GradioOscilloscopeGUI:
         except Exception as e:
             return f"Configuration error: {str(e)}"
 
-    def configure_timebase(self, time_scale_str, time_offset):
+    def configure_timebase(self, time_scale_input, time_offset):
         if not self.oscilloscope or not self.oscilloscope.is_connected:
             return "Error: Not connected"
         
         try:
-            time_scale = parse_timebase_string(time_scale_str)
+            # If time_scale_input is already a number, use it directly
+            if isinstance(time_scale_input, (int, float)):
+                time_scale = float(time_scale_input)
+                display_scale = format_si_value(time_scale, 's')
+            else:
+                # For string inputs, use the parse function
+                time_scale = parse_timebase_string(time_scale_input)
+                display_scale = time_scale_input
+            
             with self.io_lock:
                 success = self.oscilloscope.configure_timebase(time_scale, time_offset)
             
             if success:
-                return f"Timebase configured: {time_scale_str} ({time_scale}s/div), offset {time_offset}s"
+                return f"Timebase configured: {display_scale} ({time_scale}s/div), offset {time_offset}s"
             else:
                 return "Timebase configuration failed"
         except Exception as e:
@@ -841,8 +860,16 @@ class GradioOscilloscopeGUI:
                 with gr.Row():
                     v_scale = gr.Number(label="V/div", value=1.0)
                     v_offset = gr.Number(label="Offset (V)", value=0.0)
-                    coupling = gr.Dropdown(label="Coupling", choices=["AC", "DC"], value="DC")
-                    probe = gr.Dropdown(label="Probe", choices=[1.0, 10.0, 100.0], value=1.0)
+                    coupling = gr.Dropdown(
+                        label="Coupling",
+                        choices=["AC", "DC"],
+                        value="DC"
+                    )
+                    probe = gr.Dropdown(
+                        label="Probe",
+                        choices=[("1x", 1.0), ("10x", 10.0), ("100x", 100.0)],
+                        value=1.0
+                    )
                 
                 config_channel_btn = gr.Button("Configure Channels", variant="primary")
                 channel_status = gr.Textbox(label="Status", interactive=False)
@@ -859,7 +886,7 @@ class GradioOscilloscopeGUI:
                     time_scale = gr.Dropdown(
                         label="Time/div",
                         choices=self.timebase_scales,
-                        value="10 ms"
+                        value=10e-3  # 10 ms in seconds
                     )
                     time_offset = gr.Number(label="Offset (s)", value=0.0)
                     timebase_btn = gr.Button("Apply Timebase", variant="primary")
@@ -1080,14 +1107,39 @@ class GradioOscilloscopeGUI:
                 gr.Markdown("### Waveform Measurements")
                 
                 with gr.Row():
+                    # Create channel choices with explicit typing
+                    channel_choices: List[Union[str, int, float, Tuple[str, Union[str, int, float]]]] = [
+                        ("Channel 1", "CH1"),
+                        ("Channel 2", "CH2"),
+                        ("Channel 3", "CH3"),
+                        ("Channel 4", "CH4")
+                    ]
                     meas_channel = gr.Dropdown(
                         label="Channel",
-                        choices=["CH1", "CH2", "CH3", "CH4"],
+                        choices=channel_choices,
                         value="CH1"
                     )
+                    # Measurement choices with explicit typing
+                    measurement_choices: List[Union[str, int, float, Tuple[str, Union[str, int, float]]]] = [
+                        ("Frequency", "FREQ"),
+                        ("Period", "PERiod"),
+                        ("Peak-to-Peak", "VPP"),
+                        ("Amplitude", "VAMP"),
+                        ("Overshoot", "OVERshoot"),
+                        ("Top", "VTOP"),
+                        ("Base", "VBASe"),
+                        ("Average", "VAVG"),
+                        ("RMS", "VRMS"),
+                        ("Maximum", "VMAX"),
+                        ("Minimum", "VMIN"),
+                        ("Rise Time", "RISE"),
+                        ("Fall Time", "FALL"),
+                        ("Duty Cycle", "DUTYcycle"),
+                        ("Negative Duty Cycle", "NDUTy")
+                    ]
                     meas_type = gr.Dropdown(
                         label="Measurement Type",
-                        choices=self.measurement_types,
+                        choices=measurement_choices,
                         value="FREQ"
                     )
                     measure_btn = gr.Button("Measure", variant="primary")
@@ -1106,51 +1158,107 @@ class GradioOscilloscopeGUI:
         
         return interface
 
-    def launch(self, share=False, server_port=7860, auto_open=True):
+    def launch(self, share=False, server_port=7860, auto_open=True, max_attempts=10):
         self._gradio_interface = self.create_interface()
         
-        try:
-            print(f"Starting server on port {server_port}...")
-            print("To stop the application, press Ctrl+C in this terminal.")
-            print("Closing the browser tab will NOT stop the server.")
-            print("-" * 60)
-            
-            # Launch with blocking=True to keep the process alive
-            self._gradio_interface.launch(
-                share=share, 
-                server_port=server_port,
-                inbrowser=auto_open,
-                prevent_thread_lock=False,
-                show_error=True,
-                quiet=False
-            )
-            
-        except KeyboardInterrupt:
-            print("\nShutting down gracefully...")
-            self.cleanup()
-        except Exception as e:
-            print(f"Launch error: {e}")
-            self.cleanup()
-        finally:
-            # Ensure cleanup happens
-            self.cleanup()
+        for attempt in range(max_attempts):
+            current_port = server_port + attempt
+            try:
+                print(f"Attempting to start server on port {current_port}...")
+                
+                # Launch with blocking=True to keep the process alive
+                self._gradio_interface.launch(
+                    share=share, 
+                    server_port=current_port,
+                    inbrowser=auto_open if attempt == 0 else False,  # Only try to open browser on first attempt
+                    prevent_thread_lock=False,
+                    show_error=True,
+                    quiet=False
+                )
+                
+                # If we get here, launch was successful
+                print("\n" + "=" * 80)
+                print(f"Server is running on port {current_port}")
+                print("To stop the application, press Ctrl+C in this terminal.")
+                print("=" * 80)
+                return
+                
+            except Exception as e:
+                if "address already in use" in str(e).lower() or "port in use" in str(e).lower():
+                    print(f"Port {current_port} is in use, trying next port...")
+                    if attempt == max_attempts - 1:
+                        print(f"\nError: Could not find an available port after {max_attempts} attempts.")
+                        print("Please close any other instances or specify a different starting port.")
+                        self.cleanup()
+                        return
+                else:
+                    print(f"\nLaunch error: {e}")
+                    self.cleanup()
+                    return
+        
+        print("\nFailed to start the server after multiple attempts.")
+        self.cleanup()
 
+
+import socket
+
+def find_available_port(start_port=7860, max_attempts=100):
+    """Find an available port starting from start_port"""
+    for port in range(start_port, start_port + max_attempts):
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.bind(('', port))
+                return port
+        except OSError:
+            continue
+    raise OSError(f"No available port found in range {start_port}-{start_port + max_attempts - 1}")
 
 def main():
     print("Keysight Oscilloscope Automation - Gradio Interface")
     print("Professional oscilloscope control system")
     print("=" * 80)
     print("Starting web interface...")
-    print("The browser will open automatically.")
-    print("")
-    print("IMPORTANT: To stop the application, press Ctrl+C in this terminal.")
-    print("Closing the browser tab will NOT stop the server.")
-    print("=" * 80)
     
     app = None
     try:
-        app = GradioOscilloscopeGUI()
-        app.launch(share=False, server_port=7860, auto_open=True)
+        # Try a higher port range to avoid conflicts
+        start_port = 9000
+        max_attempts = 10
+        
+        print(f"Looking for an available port starting from {start_port}...")
+        
+        for port in range(start_port, start_port + max_attempts):
+            try:
+                # Try to create a socket to check if port is available
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                    s.bind(('', port))
+                    s.close()
+                    
+                    # If we get here, the port is available
+                    print(f"\nFound available port: {port}")
+                    print("The browser will open automatically when ready.")
+                    print("")
+                    print("IMPORTANT: To stop the application, press Ctrl+C in this terminal.")
+                    print("Closing the browser tab will NOT stop the server.")
+                    print("=" * 80)
+                    
+                    # Create and launch the app
+                    app = GradioOscilloscopeGUI()
+                    app.launch(share=False, server_port=port, auto_open=True)
+                    break
+                    
+            except OSError as e:
+                if "address already in use" in str(e).lower():
+                    print(f"Port {port} is in use, trying next port...")
+                    if port == start_port + max_attempts - 1:
+                        print(f"\nError: Could not find an available port after {max_attempts} attempts.")
+                        print("Please close any applications using ports {}-{}" \
+                              .format(start_port, start_port + max_attempts - 1))
+                        return
+                else:
+                    print(f"Error checking port {port}: {e}")
+                    return
+                    
     except KeyboardInterrupt:
         print("\nApplication closed by user.")
     except Exception as e:
@@ -1158,7 +1266,8 @@ def main():
     finally:
         if app:
             app.cleanup()
-        print("Application shutdown complete.")
+        print("\nApplication shutdown complete.")
+        print("=" * 80)
 
 
 if __name__ == "__main__":
