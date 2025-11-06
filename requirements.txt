@@ -19,3 +19,4 @@ pyusb==1.2.1     # for USB backend when needed
 
 # Web interface
 gradio==4.44.1
+huggingface_hub==0.25.2
